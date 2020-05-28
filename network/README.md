@@ -1,12 +1,12 @@
 # Network
 
-This directory is the core of all network components necessary to host a quorum test-network locally. A script `network.py` is provided that automagically sets up a network from a given `network.yaml` file.
+This directory is the core of all network components necessary to host a quorum test-network locally. A script `network.py` is provided that automagically sets up a network from a given `network.yaml` configuration file.
 
 ## Description
 
 This is a network proposal, that is the basis for a publicly visible but permissioned blockchain based on [quorum](https://github.com/jpmorganchase/quorum), which itself is based on [geth](https://github.com/ethereum/go-ethereum). To achieve this, the network design depends on five different kind of nodes: `validators`, `observers`, `governers`, `maintainers` and `bankers`. Their roles are illustrated below. `validators` secure the network through Ethereum's **Istanbul BFT Consensus**, `observers` broadcast the blockchain content to the wider public, `governers` govern collectively the blockchain, `maintainers` upload and maintain smart contracts and `bankers` provide wallets for blockchain interaction and ecosystem inclusion.
 
-![network-architecture]("https://raw.githubusercontent.com/hohmannr/DLT4PI-CBDC/master/pics/network-architecture.png")
+![network-nodes]("https://raw.githubusercontent.com/hohmannr/DLT4PI-CBDC/master/pics/network-architecture.png")
 
 ## Network Config File
 
@@ -16,7 +16,7 @@ The network configuration file `network.yaml` is used to define the network part
 
 The included `network.yaml` configuration models a central bank which issues a CBDC over this network. It includes
 
-- 4x `validators` from two different organizations (central bank and government
+- 4x `validators` from two different organizations (central bank and government)
 
 <!-- TODO: ADD NODES HERE -->
 
