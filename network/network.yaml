@@ -10,10 +10,10 @@ network:
             org: central-bank
             ip: 127.0.0.1
             port: 30300
-            rcp-port: 22000
+            rpc-port: 22000
             docker-ip: 127.0.0.1
             docker-port: 30300
-            docker-rcp-port: 22000
+            docker-rpc-port: 22000
             # do not use this passphrase in production
             passphrase: root
             # balance in WEI, below seen are 100 ETH
@@ -22,27 +22,26 @@ network:
             org: central-bank
             ip: 127.0.0.1
             port: 30301
-            rcp-port: 22001
+            rpc-port: 22001
             docker-ip: 127.0.0.1
             docker-port: 30300
-            docker-rcp-port: 22000
+            docker-rpc-port: 22000
             passphrase: root
         government.val0:
             org: government
             ip: 127.0.0.1
             port: 30302
-            rcp-port: 22002
+            rpc-port: 22002
             docker-ip: 127.0.0.1
             docker-port: 30300
-            docker-rcp-port: 22000
+            docker-rpc-port: 22000
             passphrase: root
         government.val1:
             org: government
             ip: 127.0.0.1
             port: 30303
-            rcp-port: 22003
+            rpc-port: 22003
             docker-ip: 127.0.0.1
             docker-port: 30300
-            docker-rcp-port: 22000
+            docker-rpc-port: 22000
             passphrase: root
-            
