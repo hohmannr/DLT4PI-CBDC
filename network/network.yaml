@@ -1,47 +1,49 @@
 network:
-    id: 10
-    name: cbdc-net
-    orgs:
-        - central-bank
-        - government
-    validators:
-        central-bank.val0:
-            # org has to be in orgs mentioned above
-            org: central-bank
-            ip: 127.0.0.1
-            port: 30300
-            rpc-port: 22000
-            docker-ip: 127.0.0.1
-            docker-port: 30300
-            docker-rpc-port: 22000
-            # do not use this passphrase in production
-            passphrase: root
-            # balance in WEI, below seen are 100 ETH
-            balance: 100000000000000000000
-        central-bank.val1:
-            org: central-bank
-            ip: 127.0.0.1
-            port: 30301
-            rpc-port: 22001
-            docker-ip: 127.0.0.1
-            docker-port: 30300
-            docker-rpc-port: 22000
-            passphrase: root
-        government.val0:
-            org: government
-            ip: 127.0.0.1
-            port: 30302
-            rpc-port: 22002
-            docker-ip: 127.0.0.1
-            docker-port: 30300
-            docker-rpc-port: 22000
-            passphrase: root
-        government.val1:
-            org: government
-            ip: 127.0.0.1
-            port: 30303
-            rpc-port: 22003
-            docker-ip: 127.0.0.1
-            docker-port: 30300
-            docker-rpc-port: 22000
-            passphrase: root
+  id: 10
+  name: cbdc-net
+  orgs:
+    - central-bank
+    - government
+  validators:
+    central-bank.val0:
+      # org has to be in orgs mentioned above
+      org: central-bank
+      ip: 127.0.0.1
+      port: 30300
+      rpc-port: 22000
+      docker-ip: 127.0.0.1
+      docker-port: 30300
+      docker-rpc-port: 22000
+      # do not use this passphrase in production
+      passphrase: root
+      # balance in WEI, below seen are 100 ETH
+      balance: 100000000000000000000
+    central-bank.val1:
+      org: central-bank
+      ip: 127.0.0.1
+      port: 30301
+      rpc-port: 22001
+      docker-ip: 127.0.0.1
+      docker-port: 30300
+      docker-rpc-port: 22000
+      passphrase: root
+    government.val0:
+      org: government
+      ip: 127.0.0.1
+      port: 30302
+      rpc-port: 22002
+      docker-ip: 127.0.0.1
+      docker-port: 30300
+      docker-rpc-port: 22000
+      passphrase: root
+    government.val1:
+      org: government
+      ip: 127.0.0.1
+      port: 30303
+      rpc-port: 22003
+      docker-ip: 127.0.0.1
+      docker-port: 30300
+      docker-rpc-port: 22000
+      passphrase: root
+
+# vim: ft=yaml

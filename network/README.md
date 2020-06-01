@@ -91,7 +91,7 @@ This downs every node. **Please always use this method to stop the geth nodes**,
 $ ./network.py init --reset
 ```
 
-This simply shuts down all nodes, deletes the network directory cleans up network fragments and then reinitializes the network with a shiny clean new directory.
+This simply shuts down all nodes, deletes the network directory, cleans up network fragments and then reinitializes the network with a shiny clean and new directory.
 
 **Deleting the network**
 
