@@ -7,7 +7,7 @@ Documentation of the code is provided as READMEs in the according sub-directorie
 
 Available READMEs:
 
-    - [network](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/network/README.md)
+- [network](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/network/README.md)
 
 ## Requirements
 
