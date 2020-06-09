@@ -8,5 +8,6 @@
 - make
 - go
 - docker
+  # docker daemon needs to be running
 
 # vim: ft=yaml
