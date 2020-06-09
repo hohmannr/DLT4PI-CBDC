@@ -66,7 +66,7 @@ $ ./network.py prepare
 $ ./network.py init
 ```
 
-This initializes the nodes, creates a certain directory hierarchy (learn more [here](#directory-tree)) and prepares every node for booting. All nodes are initialized as seperate docker containers*.
+This initializes the nodes, creates a certain directory hierarchy (learn more [here](#directory-tree)) and prepares every node for booting. All nodes are initialized as seperate docker containers.
 
 **Step 3.** - Booting up all nodes
 
