@@ -51,6 +51,8 @@ The Code has been tested with following versions on `5.6.14-arch1-1` Linux.
 
 ## License
 
+### MIT License
+
 Copyright (c) 2020 hohmannr
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
