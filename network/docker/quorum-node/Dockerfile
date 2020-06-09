@@ -8,8 +8,8 @@ ARG UID=1000
 # adding dependecies
 RUN apk add git make go linux-headers
 
-# adding new user
-RUN adduser -u $UID -S $UNAME
+# adding new user when it is not root
+RUN if [[ ! $UID -eq 0 ]]; then adduser -u $UID -S $UNAME; fi;
 
 # cloning and making quorum git repo and adding binaries to /bin
 RUN git clone https://github.com/jpmorganchase/quorum.git &&\

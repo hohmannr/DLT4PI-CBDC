@@ -1,3 +1,12 @@
-golang
-python3:
-    - pyyaml
+# Alpine Linux dependencies
+
+- git
+- python3
+  - [pip3] # for installing pyyaml
+  - pyyaml
+- linux-headers
+- make
+- go
+- docker
+
+# vim: ft=yaml
