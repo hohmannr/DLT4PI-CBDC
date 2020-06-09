@@ -4,6 +4,10 @@ network:
   orgs:
     - central-bank
     - government
+  
+  # docker driver
+  driver: "bridge"
+
   validators:
     central-bank.val0:
       # org has to be in orgs mentioned above
@@ -11,7 +15,7 @@ network:
       ip: 127.0.0.1
       port: 30300
       rpc-port: 22000
-      docker-ip: 127.0.0.1
+      docker-ip: 172.19.0.10
       docker-port: 30300
       docker-rpc-port: 22000
       # do not use this passphrase in production
@@ -23,7 +27,7 @@ network:
       ip: 127.0.0.1
       port: 30301
       rpc-port: 22001
-      docker-ip: 127.0.0.1
+      docker-ip: 172.19.0.20
       docker-port: 30300
       docker-rpc-port: 22000
       passphrase: root
@@ -32,7 +36,7 @@ network:
       ip: 127.0.0.1
       port: 30302
       rpc-port: 22002
-      docker-ip: 127.0.0.1
+      docker-ip: 172.19.0.30
       docker-port: 30300
       docker-rpc-port: 22000
       passphrase: root
@@ -41,7 +45,7 @@ network:
       ip: 127.0.0.1
       port: 30303
       rpc-port: 22003
-      docker-ip: 127.0.0.1
+      docker-ip: 172.19.0.40
       docker-port: 30300
       docker-rpc-port: 22000
       passphrase: root

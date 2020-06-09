@@ -63,15 +63,15 @@ $ ./network.py prepare
 **Step 2.** - Initializing nodes
 
 ```
-$ ./network.py init --no-docker
+$ ./network.py init
 ```
 
-This initializes the nodes, creates a certain directory hierarchy (learn more [here](#directory-tree)) and prepares every node for booting. By default, this also initializes the use of `docker` for the nodes, but this is **NOT IMPLEMENTED YET**.
+This initializes the nodes, creates a certain directory hierarchy (learn more [here](#directory-tree)) and prepares every node for booting. All nodes are initialized as seperate docker containers*.
 
 **Step 3.** - Booting up all nodes
 
 ```
-$ ./network.py up --no-docker
+$ ./network.py up
 ```
 
 Now the network configured in `network.yaml` should be running.
@@ -125,6 +125,9 @@ When using `network.py` to setup the network, following directory logic is creat
 This structure is generated from the `network.yaml` and represents all nodes and organizations listed in there. It is needed for the setup with docker containers.
 
 ## Changelog
+
+- version 0.2:
+    - added docker container support (this will be the default)
 
 - version 0.1.1:
     - added automatic node boot up and shut down

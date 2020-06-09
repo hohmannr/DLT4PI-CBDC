@@ -22,16 +22,26 @@ class color:
     UNDERLINE = "\033[4m"
     STOP = "\033[0m"
 
+# COMMANDS
 class Command():
     """Defines an abstract skeleton class for Subcommands used."""
     __metaclass__ = abc.ABCMeta
     WORKDIR = os.getcwd()
+    # mark the '/' at the end. this is needed for docker
+    DOCKER_WORKDIR = "/home/quorum-node"
     LOGFILE = os.path.join(WORKDIR, ".tmp", "logs.txt")
     CONF_FILE = "network.yaml"
+    DOCKER_DIR = os.path.join(WORKDIR, "docker")
+
+    # TODO: Add optional flag to change this
+    DOCKER_SUBNET = "172.19.0.0/16"
 
     # Binary directories
     ISTANBUL_BIN = os.path.join(WORKDIR, "istanbul-tools", "build", "bin")
     QUORUM_BIN = os.path.join(WORKDIR, "quorum", "build", "bin")
+
+    # Docker base images names
+    DOCKER_BASE_IMGS = ["quorum-node"]
 
     COMMANDS = ["prepare", "init", "up", "down", "clean", "help"]
 
@@ -68,7 +78,7 @@ class Command():
         # check if valid subcmd
         if subcmd not in cls.COMMANDS:
             errstr = f"Unknown subcommand {subcmd}.\n"
-            cls.handle_err(None, errstr)
+            Command.handle_err(None, errstr)
 
         # parses flags
         subcmd_args = []
@@ -120,6 +130,38 @@ class Command():
         sys.exit(1)
 
     @classmethod
+    def sh_cmd(cls, cmd, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, background=False, env=None, check_ret=True):
+        """Calls a bash command and handles error etc."""
+        process = subprocess.Popen(cmd.split(), stdout=stdout, stderr=stderr, stdin=subprocess.PIPE, env=env)
+
+        if stdin is not None:
+            if not background:
+                inbytes = bytes(stdin.encode("utf-8"))
+                stdout, stderr = process.communicate(inbytes)
+
+                stdout = stdout.decode("utf-8")
+                stderr = stderr.decode("utf-8")
+                process.wait()
+
+                if check_ret and process.returncode != 0:
+                    cls.handle_err(None, stderr)
+        else:
+            if not background:
+                stdout, stderr = process.communicate()
+                stdout = stdout.decode("utf-8")
+                stderr = stderr.decode("utf-8")
+                process.wait()
+
+                if check_ret and process.returncode != 0:
+                    cls.handle_err(None, stderr)
+
+        if background:
+            return process
+        else:
+            return stdout
+        
+
+    @classmethod
     def print_progress(cls, progrstr, end="\r"):
         """Prints progress to terminal and provides a way to easily update outputstring on completion"""
         if progrstr == "ok":
@@ -130,11 +172,25 @@ class Command():
             print(f"{color.INFO}{color.BOLD}[INFO]{color.STOP}\t{progrstr}", end=end)
 
 class Prepare(Command):
-    """Makes network dependencies such as quorum and istanbul-tools."""
+    """Makes network dependencies such as quorum and istanbul-tools and prepares docker network."""
+
     DEPENDENCIES = {
-            "quorum": "make all",
-            "istanbul-tools": "make"
-        }
+        "quorum": "make all",
+        "istanbul-tools": "make"
+    }
+
+    FLAGS = {
+        "docker": True
+    }
+
+    @classmethod
+    def handle_flags(cls, args):
+        for arg in args:
+            if arg in ["-h", "--help"]:
+                cls.print_help()
+                sys.exit(0)
+            elif arg in ["--no-docker"]:
+                cls.FLAGS["docker"] = False
 
     @classmethod
     def call(cls, flgs):
@@ -142,16 +198,34 @@ class Prepare(Command):
 
         for dep, makecmd in cls.DEPENDENCIES.items():
             cls.print_progress(f"Making dependency '{dep}'.")
+
             try:
                 os.chdir(dep)
-                process = subprocess.run(makecmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, universal_newlines=True)
-                os.chdir("..")
             except Exception as err:
-                errstr = f"Could not make dependency '{dep}'."
+                errstr = f"Could not find directory {dep}. Have you called 'git submodules update'?"
+                Command.handle_err(err, errstr)
 
-                cls.handle_err(err, errstr)
+            cls.sh_cmd(makecmd)
+            os.chdir("..")
 
             cls.print_progress("ok")
+
+        # prepare docker images
+        if cls.FLAGS["docker"]:
+            # build docker image for every node type
+            node_types = cls.DOCKER_BASE_IMGS
+            for nt in Node.TYPES:
+                node_types.append(nt[:-1])
+            for t in node_types:
+                docker_dir = os.path.join(cls.DOCKER_DIR, t)
+                if os.path.isdir(docker_dir):
+                    cls.print_progress(f"Building docker image '{t}'")
+                    
+                    uid = os.geteuid()
+                    cmd = f"docker build --build-arg UID={uid} -t {t}:latest {docker_dir}"
+                    cls.sh_cmd(cmd)
+
+                    cls.print_progress("ok")
 
     @classmethod
     def print_help(cls):
@@ -162,7 +236,7 @@ class Prepare(Command):
                 "Please make sure that the following repos exist in the current working directory:\n"
         )
 
-        for repo, _ in cls.DEPENDENCIES.items():
+        for repo in cls.DEPENDENCIES.keys():
             helpstr += f"    - {repo}\n"
 
         helpstr += (
@@ -174,18 +248,26 @@ class Prepare(Command):
 
 class Clean(Command):
     """Shuts down all nodes, deletes network directory and cleans up afterwards"""
+
     FLAGS = {
-        "config": Command.CONF_FILE
+        "docker": False
     }
 
     @classmethod
-    def call(cls, flgs):
+    def handle_flags(cls, args):
+        for arg in args:
+            if arg in ["-h", "--help"]:
+                cls.print_help()
+                sys.exit(0)
+            elif arg in ["--docker", "-d"]:
+                cls.FLAGS["docker"] = True
+
+    @classmethod
+    def call(cls, net, flgs):
         cls.handle_flags(flgs)
 
-        net = Network(cls.FLAGS["config"], cls.WORKDIR)
-
         # shutdown all running nodes before cleaning
-        Down.call([cls.FLAGS["config"]])
+        Down.call(net, [])
 
         # delete network directory
         try:
@@ -201,14 +283,27 @@ class Clean(Command):
         except:
             cls.print_progress(f"No such network '{net.name}'.", end="\n")
 
-    @classmethod
-    def handle_flags(cls, args):
-        for arg in args:
-            if arg in ["-h", "--help"]:
-                cls.print_help()
-                sys.exit(0)
-            else:
-                cls.FLAGS["config"] = arg
+
+        if cls.FLAGS["docker"]:
+            # remove also docker images
+            node_types = cls.DOCKER_BASE_IMGS
+            for nt in Node.TYPES:
+                node_types.append(nt[:-1])
+            for t in node_types:
+                docker_dir = os.path.join(cls.DOCKER_DIR, t)
+                if os.path.isdir(docker_dir):
+                    cls.print_progress(f"Removing docker image '{t}'")
+                    
+                    cmd = f"docker rmi --force {t}"
+                    cls.sh_cmd(cmd)
+
+                    cls.print_progress("ok")
+
+            # remove the created docker network aswell
+            cls.print_progress(f"Removing docker network '{net.name}'")
+            cmd = f"docker network rm {net.name}"
+            cls.sh_cmd(cmd)
+            cls.print_progress("ok")
 
     @classmethod
     def print_help(cls):
@@ -218,6 +313,9 @@ class Clean(Command):
             "\n"
             "DESC\n"
             "    Deletes network directory given from network config file.\n"
+            "\n"
+            "FLAGS\n"
+            "    --docker, -d\tRemoves all network related docker images.\n"
             "\n"
             "INPUT\n"
             f"    <CONF>\t{cls.CONF_FILE}\tThe network config file for the network that will be deleted."
@@ -232,7 +330,6 @@ class Init(Command):
         "docker": True,
         "pass": False,
         "reset": False,
-        "config": Command.CONF_FILE
     }
 
     @classmethod
@@ -247,17 +344,13 @@ class Init(Command):
                 cls.FLAGS["pass"] = True
             elif arg in ["--reset"]:
                 cls.FLAGS["reset"] = True
-            else:
-                cls.FLAGS["config"] = arg
 
     @classmethod
-    def call(cls, flgs):
+    def call(cls, net, flgs):
         cls.handle_flags(flgs)
 
         if cls.FLAGS["reset"]:
-            Clean.call([cls.FLAGS["config"]])
-
-        net = Network(cls.FLAGS["config"], cls.WORKDIR)
+            Clean.call(net, [])
 
         cls.gen_file_structure(net)
         genesis_file, static_nodes_file = cls.setup_validators(net)
@@ -265,12 +358,11 @@ class Init(Command):
         addrs = cls.gen_accounts(net)
         cls.config_genesis(net, genesis_file, addrs)
         cls.distrib_network_files(net, genesis_file, static_nodes_file)
+        cls.geth_init(net, cls.FLAGS["docker"])
 
-        # TODO: Implement docker setup
+        # docker specific setup
         if cls.FLAGS["docker"]:
-            pass
-        else:
-            cls.geth_init(net, cls.FLAGS["docker"])
+            cls.prepare_docker_net(net)
 
     @classmethod
     def gen_file_structure(cls, net):
@@ -285,8 +377,8 @@ class Init(Command):
             cls.print_progress("ok")
 
         except Exception as err:
-            errstr = "Could not create network file structure. If this is not the first time setting up a network with this name, please clean the old one first by using\n\n\t{sys.argv[0]} clean"
-            cls.handle_err(err, errstr)
+            errstr = f"Could not create network file structure. If this is not the first time setting up a network with this name, please clean the old one first by using\n\n\t{sys.argv[0]} clean"
+            Command.handle_err(err, errstr)
 
     @classmethod
     def setup_validators(cls, net):
@@ -294,13 +386,10 @@ class Init(Command):
 
         os.chdir(net.lead_val.dir)
         istanbul_bin = os.path.join(cls.ISTANBUL_BIN, "istanbul")
-        try:
-            cmd = f"{istanbul_bin} setup --num {len(net.vals)} --nodes --quorum --save --verbose"
-            process = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, universal_newlines=True)
-        except Exception as err:
-            errstr = f"Could not setup validators. Issue with binary from '{istanbul_bin}'."
-            cls.handle_err(err, errstr)
 
+        cmd = f"{istanbul_bin} setup --num {len(net.vals)} --nodes --quorum --save --verbose"
+        cls.sh_cmd(cmd)
+        
         static_nodes_file = os.path.join(net.lead_val.dir, "static-nodes.json")
         genesis_file = os.path.join(net.lead_val.dir, "genesis.json")
         os.chdir(cls.WORKDIR)
@@ -319,8 +408,13 @@ class Init(Command):
         # edit static nodes
         edited_enodes = []
         for i, enode in enumerate(static_nodes):
-            ip = net.vals[i].ip
-            port = net.vals[i].port
+            # check for docker to use different IPs and ports
+            if cls.FLAGS["docker"]:
+                ip = net.vals[i].opt_dict["docker-ip"]
+                port = net.vals[i].opt_dict["docker-port"]
+            else:
+                ip = net.vals[i].ip
+                port = net.vals[i].port
             
             enode = enode.replace("@0.0.0.0:", f"@{ip}:")
             enode = enode.replace(":30303?", f":{port}?")
@@ -340,14 +434,17 @@ class Init(Command):
         for node in net.nodes:
             data_dir = os.path.join(node.dir, "data")
 
+            if node.type not in addrs.keys():
+                addrs[node.type] = {}
+
             if cls.FLAGS["pass"]:
-                addrs[node.name] = cls.gen_geth_account(data_dir, None)
+                addrs[node.type][node.name] = cls.gen_geth_account(data_dir, None)
             else:
-                addrs[node.name] = cls.gen_geth_account(data_dir, passphrase=node.opt_dict["passphrase"])
+                addrs[node.type][node.name] = cls.gen_geth_account(data_dir, passphrase=node.opt_dict["passphrase"])
 
             # save nodes addr to node's addr file
             with open(node.addr_file, "w") as f:
-                f.write(addrs[node.name])
+                f.write(addrs[node.type][node.name])
 
         # save all addresses to network's addr file
         with open(net.addr_file, "w") as f:
@@ -359,30 +456,22 @@ class Init(Command):
 
     @classmethod
     def gen_geth_account(cls, data_dir, passphrase):
-        try:
-            # create process to input to geth
-            geth_bin = os.path.join(cls.QUORUM_BIN, "geth")
-            cmd = f"{geth_bin} --datadir {data_dir} account new"
-            if passphrase is None:
-                passphrase = input(f"Passphrase for '{data_dir}':\n--> ")
+        # create process to input to geth
+        geth_bin = os.path.join(cls.QUORUM_BIN, "geth")
+        cmd = f"{geth_bin} --datadir {data_dir} account new"
+        if passphrase is None:
+            passphrase = input(f"Passphrase for '{data_dir}':\n--> ")
 
-            process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-            inbytes = bytes(f"{passphrase}\n{passphrase}\n".encode("utf-8"))
-            stdout, stderr = process.communicate(inbytes)
-            stdout = stdout.decode("utf-8")
-            stderr = stderr.decode("utf-8")
+        stdout = cls.sh_cmd(cmd, stdin=f"{passphrase}\n{passphrase}\n")
 
-            # get created address from output
-            addr = None
-            for literal in stdout.split():
-                if literal.startswith("0x"):
-                    addr = literal
-                    break
+        # get created address from output
+        addr = None
+        for literal in stdout.split():
+            if literal.startswith("0x"):
+                addr = literal
+                break
 
-            return addr
-        except Exception as err:
-            errstr = f"Could not create geth account for data directory '{data_dir}'"
-            cls.handle_err(err, errstr)
+        return addr
     
     @classmethod
     def config_genesis(cls, net, genesis_file, addrs):
@@ -396,7 +485,7 @@ class Init(Command):
             genesis["alloc"] = {}
         except Exception as err:
             errstr = f"Could not configure genesis block, since provided genesis file '{genesis_file}' was not found."
-            cls.handle_err(err, errstr)
+            Command.handle_err(err, errstr)
         
         # pre allocating funds
         genesis = cls.pre_alloc_funds(net, genesis, addrs)
@@ -418,7 +507,7 @@ class Init(Command):
     def pre_alloc_funds(cls, net, genesis_dict, addrs):
         for node in net.nodes:
             if "balance" in node.opt_dict.keys():
-                addr = addrs[node.name]
+                addr = addrs[node.type][node.name]
                 balance = str(int(node.opt_dict["balance"]))
                 genesis_dict["alloc"][addr] = {"balance": balance}
 
@@ -439,6 +528,18 @@ class Init(Command):
             nodekey_file = os.path.join(net.lead_val.dir, str(i), "nodekey")
             shutil.copyfile(nodekey_file, os.path.join(val.dir, "data", "geth", "nodekey"))
 
+        # clean up
+        for i in range(len(net.vals)):
+            try:
+                shutil.rmtree(os.path.join(net.lead_val.dir, str(i)))
+            except:
+                pass
+
+        try:
+            os.remove(os.path.join(net.lead_val.dir, "static-nodes.json"))
+        except:
+            pass
+
         # TODO: Also distribute to other nodes
 
         cls.print_progress("ok")
@@ -446,11 +547,22 @@ class Init(Command):
     @classmethod
     def geth_init(cls, net, docker):
         """Calls 'geth init' on all nodes to complete initialization process."""
-        cls.print_progress(f"Calling 'geth init' on all nodes. DOCKER={docker}")
+        progress_str = f"Calling 'geth init' on all nodes."
+        if docker:
+            progress_str += " Using docker containers!"
+        cls.print_progress(progress_str)
 
         for node in net.nodes:
             node.geth_init(docker)
 
+        cls.print_progress("ok")
+
+    @classmethod
+    def prepare_docker_net(cls, net):
+        """Prepares docker network from network config."""
+        cls.print_progress(f"Creating docker network '{net.name}'.")
+        cmd = f"docker network create -d {net.driver} --subnet {cls.DOCKER_SUBNET} {net.name}"
+        cls.sh_cmd(cmd, check_ret=False)
         cls.print_progress("ok")
 
     @classmethod
@@ -488,20 +600,16 @@ class Up(Command):
                 sys.exit(0)
             elif arg in ["--no-docker"]:
                 cls.FLAGS["docker"] = False
-            else:
-                cls.FLAGS["config"] = arg
 
     @classmethod
-    def call(cls, flgs):
+    def call(cls, net, flgs):
         cls.handle_flags(flgs)
-
-        net = Network(cls.FLAGS["config"], cls.WORKDIR)
 
         # check if nodes are already running
         for node in net.nodes:
             if node.is_running():
-                errstr = f"Node '{node.name}' is already running. Please shut it down, before trying to boot it up."
-                cls.handle_err(None, errstr)
+                errstr = f"Node '{node.name}' is already running. Please shut all nodes down, before trying to boot up."
+                Command.handle_err(None, errstr)
 
         # booting up nodes
         for node in net.nodes:
@@ -542,14 +650,10 @@ class Down(Command):
             if arg in ["-h", "--help"]:
                 cls.print_help()
                 sys.exit(0)
-            else:
-                cls.FLAGS["config"] = arg
 
     @classmethod
-    def call(cls, flgs):
+    def call(cls, net, flgs):
         cls.handle_flags(flgs)
-
-        net = Network(cls.FLAGS["config"], cls.WORKDIR)
 
         # shut down all running nodes
         for node in net.nodes:
@@ -570,7 +674,7 @@ class Down(Command):
                             f"Could not shut down node '{node.name}' with PID: {node.pid}\n"
                         "Check if it is still running by calling 'ps -l'. If so, please terminate it manually by calling 'kill -SIGTERM <PID>'."
                     )
-                    cls.handle_err(err, errstr)
+                    Command.handle_err(err, errstr)
 
     @classmethod
     def print_help(cls):
@@ -591,7 +695,7 @@ class Down(Command):
 class Network(object):
     """Represents a network config .yaml file as an object and builds functionality and class definitions on top of it."""
 
-    MANDATORY_KEYS = ["id", "name", "orgs", "validators"]
+    MANDATORY_KEYS = ["id", "name", "orgs", "validators", "driver"]
     # TODO: define optional keys such as contracts, observers, etc.
     OPTIONAL_KEYS = []
 
@@ -618,6 +722,7 @@ class Network(object):
         self.dir = os.path.join(work_dir, self.dict["name"])
         self.addr_file = os.path.join(self.dir, "addresses.json")
         self.name = self.dict["name"]
+        self.driver = self.dict["driver"]
 
         self.id = self.dict["id"]
 
@@ -655,9 +760,10 @@ class Network(object):
 class Node(object):
     """Represents a network node as an object."""
     MANDATORY_KEYS = ["org", "ip", "port", "rpc-port"]
+    MANDATORY_DOCKER_KEYS = ["docker-ip", "docker-port", "docker-rpc-port"]
     OPTIONAL_KEYS = ["docker-ip", "docker-port", "docker-rpc-port", "passphrase", "balance"]
     MANDATORY_FILES = ["genesis.json", os.path.join("data", "static-nodes.json"), os.path.join("data", "geth", "nodekey")]
-    NODE_TYPES = ["validators", "observers", "governers", "maintainers", "bankers"]
+    TYPES = ["validators", "observers", "governers", "maintainers", "bankers"]
 
     def __init__(self, name, node_dict, typ, net):
         self.name = name
@@ -670,6 +776,23 @@ class Node(object):
             if key not in node_dict.keys():
                 errstr = f"Mandatory key '{key}' for node '{self.name}' of type '{self.type}' missing. Please provide it."
                 Command.handle_err(None, errstr)
+
+        # TODO: Make that cleaner (remove non docker stuff)
+        if "docker-port" in node_dict.keys():
+            docker = True
+        else:
+            docker = False
+
+        self.docker = {}
+        if docker:
+            # TODO: Write docker = True to file
+            for key in self.MANDATORY_DOCKER_KEYS:
+                if key not in node_dict.keys():
+                    errstr = f"Mandatory docker key '{key}' for node '{self.name}' of type '{self.type}' missing. Please provide it."
+                    Command.handle_err(None, errstr)
+                else:
+                    # cut off 'docker-' before the key for clarity
+                    self.docker[key[7:]] = node_dict[key]
 
         # mandatory keys
         self.ip = node_dict["ip"]
@@ -701,20 +824,17 @@ class Node(object):
 
     def geth_init(self, docker):
         """Calls 'geth init' for node."""
-        # TODO: Implement docker 'geth init'
         if docker:
-            pass
+            t = self.type[:-1]
+            uid = os.geteuid()
+            cmd = f"docker run --rm --user {uid} -w {Command.DOCKER_WORKDIR} -v {self.dir}:{Command.DOCKER_WORKDIR} --name {self.name} {t} geth --datadir data init genesis.json"
+            Command.sh_cmd(cmd)
         else:
             os.chdir(self.dir)
-            try:
-                geth_bin = os.path.join(Command.QUORUM_BIN, "geth")
-                cmd = f"{geth_bin} --datadir data init genesis.json"
-                process = subprocess.run(cmd.split(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            except Exception as err:
-                errstr = f"Could not call 'geth init' for node '{self.name}'."
-                Command.handle_err(err, errstr)
-        
-        os.chdir(Command.WORKDIR)
+            geth_bin = os.path.join(Command.QUORUM_BIN, "geth")
+            cmd = f"{geth_bin} --datadir data init genesis.json"
+            Command.sh_cmd(cmd)
+            os.chdir(Command.WORKDIR)
 
     def up(self, docker):
         """Boots up node."""
@@ -725,26 +845,26 @@ class Node(object):
 
         Command.print_progress(f"Booting up.")
         if docker:
-            # TODO: Implement docker boot up
-            pass
+            t = self.type[:-1]
+            uid = os.geteuid()
+            cmd = f"docker run --rm --user {uid} -w {Command.DOCKER_WORKDIR} -v {self.dir}:{Command.DOCKER_WORKDIR} --name {self.name} --ip {self.docker['ip']} -p {self.rpc_port}:{self.docker['rpc-port']} --network {self.net.name} {t} nohup geth --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid {self.net.id} --rpc --rpcaddr 0.0.0.0 --rpcport {self.opt_dict['docker-rpc-port']} --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port {self.docker['port']}"
+
+            with open(self.logs, "w") as logs:
+                process = Command.sh_cmd(cmd, stdout=logs, stderr=logs, background=True)
+            self.write_pid(process.pid)
+            time.sleep(1)
         else:
             os.chdir(self.dir)
-            try:
-                # TODO: What is istanbul.blockperiod?
-                geth_bin = os.path.join(Command.QUORUM_BIN, "geth")
-                cmd = f"nohup {geth_bin} --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid {self.net.id} --rpc --rpcaddr 0.0.0.0 --rpcport {self.rpc_port} --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port {self.port}"
-                envs = os.environ.copy()
-                envs["PRIVATE_CONFIG"] = "ignore"
-                with open(self.logs, "w") as logs:
-                    process = subprocess.Popen(cmd.split(), env=envs, stdout=logs, stderr=logs)
+            geth_bin = os.path.join(Command.QUORUM_BIN, "geth")
+            cmd = f"nohup {geth_bin} --datadir data --nodiscover --istanbul.blockperiod 5 --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid {self.net.id} --rpc --rpcaddr 0.0.0.0 --rpcport {self.rpc_port} --rpcapi admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port {self.port}"
+            envs = os.environ.copy()
+            envs["PRIVATE_CONFIG"] = "ignore"
+            with open(self.logs, "w") as logs:
+                process = Command.sh_cmd(cmd, env=envs, stdout=logs, stderr=logs, background=True)
 
-                # write PID to file to check if a node is running later
-                self.write_pid(process.pid)
+            # write PID to file to check if a node is running later
+            self.write_pid(process.pid)
 
-            except Exception as err:
-                errstr = f"Could not start a 'geth' process for node '{self.name}'."
-                Command.handle_err(err, errstr)
-            
             os.chdir(Command.WORKDIR)
 
         Command.print_progress("ok")
@@ -831,19 +951,31 @@ def main():
 
     # FUNCTIONALITY VIA CLASS STRUCTURE
     subcmd, args = Command.parse_args()
-    
+
+    # subcommands wihtout the need for network config file
     if subcmd == "help":
         Command.print_help()
+        sys.exit(0)
     elif subcmd == "prepare":
         Prepare.call(args)
-    elif subcmd == "init":
-        Init.call(args)
+        sys.exit(0)
+
+    # check if a network config file was provided
+    if len(args) > 1 and not args[-1].startswith("-"):
+        Command.CONF_FILE = args[-1]
+
+    # read in network from config file
+    net = Network(Command.CONF_FILE, Command.WORKDIR)
+    
+    # subcommands with the need of netwokr config file
+    if subcmd == "init":
+        Init.call(net, args)
     elif subcmd == "up":
-        Up.call(args)
+        Up.call(net, args)
     elif subcmd == "down":
-        Down.call(args)
+        Down.call(net, args)
     elif subcmd == "clean":
-        Clean.call(args)
+        Clean.call(net, args)
     else:
         Command.handle_err(None, f"Unknown subcommand: {subcmd}.")
 
