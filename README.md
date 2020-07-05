@@ -22,6 +22,7 @@ Make sure `linux.h` headers are installed.
 ```
 - python3
     - pyyaml
+    - web3.py
 - make
 - go
 - docker

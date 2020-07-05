@@ -186,11 +186,11 @@ class Command():
         # automatically fetch subcmd help strings
         cmds = "Commands\n"
         for subcls in cls.__subclasses__():
-            cmds += f"\t{subcls.__name__.lower()}\t{subcls.HELP}"
+            cmds += f"\t{subcls.__name__.lower()}\t{subcls.HELP}\n"
         cmds += "\n"
         epilog = f"For more info on commands use:\n\t{cls.NAME} COMMAND --help\n"
         
-        helpstr = usage + "\n" + cmds + "\n" + epilog
+        helpstr = usage + "\n" + cmds + "\n" + epilog + "\n"
 
         return helpstr
 
@@ -377,7 +377,7 @@ class Prepare(Command):
             "Flags\n"
             "\t-h, --help\tPrints help and exits.\n"
         )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs + "\n"
 
         return helpstr
 
@@ -400,7 +400,7 @@ class Init(Command):
             "\t-r, --reset\tCleans the network (directory) before initialization.\n"
             "\t-h, --help\tPrints help and exits.\n"
         )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs + "\n"
 
         return helpstr
 
@@ -542,7 +542,7 @@ class Clean(Command):
             "\t--docker\tAlso removes created docker network and built images.\n"
             "\t-h, --help\tPrints help and exits.\n"
         )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs + "\n"
 
         return helpstr
 
@@ -625,7 +625,7 @@ class Up(Command):
             "Flags\n"
             "\t-h, --help\tPrints help and exits.\n"
         )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs + "\n"
 
         return helpstr
 
@@ -684,7 +684,7 @@ class Setup(Command):
             "Flags\n"
             "\t-h, --help\tPrints help and exits.\n"
         )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs + "\n"
 
         return helpstr
 
@@ -758,7 +758,7 @@ class Down(Command):
             "Flags\n"
             "\t-h, --help\tPrints help and exits.\n"
         )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs + "\n"
 
         return helpstr
 

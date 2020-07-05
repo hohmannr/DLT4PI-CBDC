@@ -30,17 +30,18 @@ The included `network.yaml` configuration models a central bank which issues a C
 $ ./network.py help
 
 Usage like:
-    ./network.py COMMAND [FLAGS]
+	./network.py COMMAND [FLAGS] <config-file>
 
-COMMAND
-    prepare	Makes 'quorum' and 'istanbul-tools' dependencies.
-    init	Initializes network from config file.
-    up		Boots up all network nodes.
-    down	Shuts down all network nodes.
-    clean	Deletes network directory and cleans up afterwards.
+Commands
+	prepare	Builds needed docker images and creates new docker network.
+	init	Initializes network, espacially nodes, from config file.
+	clean	Removes network directory and cleans up afterwards.
+	up	Boots up all network nodes in docker containers.
+	setup	Sets up network state by compiling and deploying smart contracts.
+	down	Stops and shuts down every node's docker container.
 
 For more info on commands use:
-    ./network.py COMMAND --help
+	./network.py COMMAND --help
 ```
 
 ## Default Network Setup
@@ -52,11 +53,13 @@ $ git submodule init
 $ git submodule update
 ```
 
-The first network in this directory is setup in three simple steps:
+The first network in this directory is setup in four simple steps:
 
 **Step 1.** - Making dependencies
 
 ```
+$ cd quorum && make all && cd ..
+$ cd istanbul-tools && make && cd ..
 $ ./network.py prepare
 ```
 
@@ -113,6 +116,14 @@ When using `network.py` to setup the network, following directory logic is creat
             +-- <node-name>
                 +-- genesis.json
                 +-- data
+                +-- info.json
+    +-- contracts
+        +-- <contract-name>
+            +-- <contract-name>.abi
+            +-- info.json
+            +-- bin
+                +-- <contract-name>.abi
+            
 ```
 
 - `addresses.json` - file containing addresses of all nodes
@@ -121,6 +132,8 @@ When using `network.py` to setup the network, following directory logic is creat
 - `<node-name>` - directory containing node logic
 - `genesis.json` - node's genesis file (is the same for all nodes)
 - `data` - `geth` data direcory
+- `info.json` - a node/contract information file, contains addresses, account data, etc.
+- 
 
 This structure is generated from the `network.yaml` and represents all nodes and organizations listed in there. It is needed for the setup with docker containers.
 
