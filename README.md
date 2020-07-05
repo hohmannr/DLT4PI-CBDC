@@ -25,6 +25,7 @@ Make sure `linux.h` headers are installed.
 - make
 - go
 - docker
+- solc
 ```
 
 **Please make sure the requirements are fullfilled before proceeding.**
@@ -47,6 +48,7 @@ The Code has been tested with following versions on `5.6.14-arch1-1` Linux.
     - containerd=v1.3.4.m
     - runc=1.0.0-rc10
     - docker-init=0.18.0
+- solc=0.6.10
 ```
 
 ## License

@@ -10,8 +10,6 @@ import yaml
 import json
 import time
 import traceback
-
-import web3
 from web3 import Web3
 
 # UTILS
@@ -112,22 +110,7 @@ class ReadingInfoFileErr(Exception):
 class WritingInfoFileErr(Exception):
     pass
 
-class MainAccountErr(Exception):
-    pass
-
-class NoMaintainerPresentErr(Exception):
-    pass
-
-class Web3ConnectionErr(Exception):
-    pass
-
-class AbiNotFoundErr(Exception):
-    pass
-
-class ObjNotSavableErr(Exception):
-    pass
-
-# COMMAND
+# COMMANDS
 class Command():
     """Defines the working shell environment."""
     # directories
@@ -347,7 +330,7 @@ class Prepare(Command):
         
         # prepare docker network
         try:
-            cmd = f"docker network create -d {net.docker_settings.network_driver} --subnet {net.docker_settings.subnet} {net.name}"
+            cmd = f"docker network create -d {net.driver} --subnet {net.subnet} {net.name}"
             # progress wrapper for Shell.call to print output
             cls.print_progress(f"Creating docker network '{net.name}'.", Shell.call, cmd)
         except ShellCommandErr as err:
@@ -362,7 +345,7 @@ class Prepare(Command):
             try:
                 uid = os.getuid()
                 dir = os.path.join(cls.DOCKERDIR, img)
-                cmd = f"docker image build --build-arg UID={uid} --build-arg DOCKER_GETH_PORT={net.docker_settings.geth_port} --build-arg DOCKER_RPC_PORT={net.docker_settings.rpc_port} -t {img}:latest {dir}"
+                cmd = f"docker image build --build-arg UID={uid} -t {img}:latest {dir}"
                 cls.print_progress(f"Building docker image '{img}'.", Shell.call, cmd, check_ret=True)
             except Exception as err:
                 return cls.handle_err(err)
@@ -433,6 +416,7 @@ class Init(Command):
         try:
             cls.print_progress("Generating file hierarchy.", cls.gen_dir_structure, net)
             cls.print_progress("Setting up IBFT validator nodes.", cls.setup_validators, net)
+            #cls.print_progress("Setting up validator discovery.", cls.setup_validator_discovery, net)
             cls.print_progress("Forming validator consortium.", cls.form_consortium, net)
             cls.print_progress("Creating geth accounts.", cls.create_accounts, net)
             cls.print_progress("Pre-allocating funds.", cls.pre_alloc_funds, net)
@@ -498,8 +482,8 @@ class Init(Command):
     def pre_alloc_funds(cls, net):
         """Checks if some node wants to have a pre-allocated balance and adds it then to all validators' genesis block."""
         for node in net.nodes:
-            if node.accs is not None:
-                for _, acc in node.accs.items():
+            if node.accounts is not None:
+                for acc in node.accounts:
                     if acc.balance is not None:
                         for val in net.validators:
                             # modifying validator's genesis
@@ -522,6 +506,60 @@ class Init(Command):
         """Compiles contracts into network directory, to be able to write the bytecode to genesis block later."""
         for c in net.contracts:
             c.compile(runtime=True)
+
+class Setup(Command):
+    """Sets up the network when it is running. Builds and deploys smart contracts specified in config file."""
+
+    HELP = "Sets up network state by compiling and deploying smart contracts."
+        
+    FLAGS = {
+        "help": False
+    }
+
+    @classmethod
+    def helpstr(cls):
+        cmd = cls.__name__.lower()
+        usage = f"Usage like:\n\t{Command.NAME} {cmd} [FLAGS]\n"
+        flgs = (
+            "Flags\n"
+            "\t-h, --help\tPrints help and exits.\n"
+        )
+        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
+
+        return helpstr
+
+    @classmethod
+    def parse_flags(cls, flgs):
+        for flg in flgs:
+            if flg in ["help", "--help", "-h"]:
+                cls.FLAGS["help"] = True
+            else:
+                raise InvalidFlagErr(f"Invalid flag '{flg}' for subcommand '{cls.__name__.lower()}'")
+
+        return cls.FLAGS
+
+    @classmethod
+    def exec(cls, net, flags=[]):
+        try:
+            flgs = cls.parse_flags(flags)
+        except InvalidFlagErr as err:
+            return cls.handle_err(err)
+
+        # check flags
+        if flgs["help"]:
+            print(cls.helpstr())
+            return 0
+
+    @classmethod
+    def compile_contracts(cls, net):
+        """Compiles contracts given in network config file."""
+        for c in net.contracts:
+            c.compile()
+
+    @classmethod
+    def deploy_contracts(cls, net):
+        """Deploys contracts given in network config file to the network."""
+
 
 class Clean(Command):
     """Shuts down all nodes, deletes the network directory and cleans up afterwards."""
@@ -667,81 +705,6 @@ class Up(Command):
         for node in net.nodes:
             node.print_status()
 
-class Setup(Command):
-    """Sets up the network when it is running. Builds and deploys smart contracts specified in config file."""
-
-    HELP = "Sets up network state by compiling and deploying smart contracts."
-        
-    FLAGS = {
-        "help": False
-    }
-
-    @classmethod
-    def helpstr(cls):
-        cmd = cls.__name__.lower()
-        usage = f"Usage like:\n\t{Command.NAME} {cmd} [FLAGS]\n"
-        flgs = (
-            "Flags\n"
-            "\t-h, --help\tPrints help and exits.\n"
-        )
-        helpstr = usage + "\n" + cls.HELP + "\n" + "\n" + flgs
-
-        return helpstr
-
-    @classmethod
-    def parse_flags(cls, flgs):
-        for flg in flgs:
-            if flg in ["help", "--help", "-h"]:
-                cls.FLAGS["help"] = True
-            else:
-                raise InvalidFlagErr(f"Invalid flag '{flg}' for subcommand '{cls.__name__.lower()}'")
-
-        return cls.FLAGS
-
-    @classmethod
-    def exec(cls, net, flags=[]):
-        try:
-            flgs = cls.parse_flags(flags)
-        except InvalidFlagErr as err:
-            return cls.handle_err(err)
-
-        # check flags
-        if flgs["help"]:
-            print(cls.helpstr())
-            return 0
-
-        try:
-            cls.compile_contracts(net)
-            cls.deploy_contracts(net)
-        except Exception as err:
-            cls.handle_err(err)
-
-    @classmethod
-    def compile_contracts(cls, net):
-        """Compiles contracts given in network config file."""
-        for c in net.contracts:
-            cls.print_progress(f"Compiling contract '{c.name}'.", c.compile)
-
-    @classmethod
-    def deploy_contracts(cls, net):
-        """Deploys contracts given in network config file to the network."""
-        if net.maintainers is not None and net.maintainers != []:
-            lead_maintainer = net.maintainers[0]
-            for contract in net.contracts:
-                # create args for constructor of known contracts such as Governing.sol
-                args = []
-                if contract.name == "governing":
-                    governors = [g.acc_addrs["main"] for g in net.governors] if net.governors is not None else []
-                    maintainers = [m.acc_addrs["main"] for m in net.maintainers] if net.maintainers is not None else []
-                    observers = [o.acc_addrs["main"] for o in net.observers] if net.observers is not None else []
-                    bankers = [b.acc_addrs["main"] for b in net.bankers] if net.bankers is not None else []
-                    blacklist = []
-                    args = [governors, maintainers, observers, bankers, blacklist]
-
-                cls.print_progress(f"Deploying contract '{contract.name}'.", lead_maintainer.deploy_contract, contract, *args)
-        else:
-            raise NoMaintainerPresentErr(f"There is no maintainer configured in the network's config file, ergo you cannot deploy smart contracts.")
-
 class Down(Command):
     """Shuts down all docker containers created from config file."""
     HELP = "Stops and shuts down every node's docker container."
@@ -838,44 +801,10 @@ class Config(object):
 
         return string
 
-    def save(self):
-        """Saves a config object by writing its important attributes to a 'info.json' in its working directory."""
-        # checking if object can be saved
-        if hasattr(self, "SAVABLE_ATTRIBUTES") and hasattr(self, "dir"):
-            # deciding which keys to save
-            dict = {}
-            for attr in self.SAVABLE_ATTRIBUTES:
-                if attr in self.__dict__.keys():
-                    dict[attr] = self.__dict__[attr]
-                elif attr in dir(self.__class__):
-                    dict[attr] = getattr(self.__class__, attr)(self)
-
-            # write keys to file
-            try:
-                with open(os.path.join(self.dir, "info.json"), "w") as f:
-                    json.dump(dict, f, indent=2)
-            except:
-                raise Exception(f"Could not write '{self.name}' dictionary to 'info.json'.")
-        else:
-            raise ObjNotSavableErr(f"Object '{self.name}' is not savable.")
-
-    def info_file_attribs(self):
-        """Checks if 'info.json' exists and reads attributes from it."""
-        info_file = os.path.join(self.dir, "info.json")
-        if os.path.isfile(info_file):
-            with open(info_file, "r") as f:
-                content = f.read()
-
-            attr_dict = json.loads(content)
-
-            for attr in attr_dict:
-                if attr in self.__dict__.keys():
-                    self.__dict__[attr] = attr_dict[attr]
-
 class Network(Config):
     """Represents a network config .yaml file as an object and builds functionality and class definitions on top of it."""
 
-    MANDATORY_KEYS = ["id", "name", "orgs", "validators", "docker-settings"]
+    MANDATORY_KEYS = ["id", "name", "orgs", "validators", "driver", "subnet"]
     OPTIONAL_KEYS = ["contracts", "governors", "bankers", "maintainers", "observers"]
 
     def __init__(self, name, config_dict, work_dir):
@@ -883,9 +812,6 @@ class Network(Config):
 
         # setting utility properties which are independent from the config-file
         self.dir = os.path.join(work_dir, self.name)
-
-        # defining docker-settings
-        self.docker_settings = DockerSettings(None, config_dict["docker-settings"])
 
         # defining nodes from input dictionaries
         self.nodes = []
@@ -921,9 +847,9 @@ class Network(Config):
         name = list(node_dict.keys())[0]
         # TODO: Add other node types
         if type == "validator":
-            return Validator(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
+            return Validator(name, type, node_dict[name], self.dir)
         elif type == "maintainer":
-            return Maintainer(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
+            return Maintainer(name, type, node_dict[name], self.dir)
     
     def create_contract(self, contract_dict):
         """Creates a contract object."""
@@ -936,31 +862,21 @@ class Network(Config):
         except FileExistsError as err:
             raise NetworkDirExistsErr(f"Network directory already exists at '{self.dir}'. Please use the 'init --reset' if you want to reset the network.")
 
-class DockerSettings(Config):
-    """Represents docker-settings from network config file."""
-
-    MANDATORY_KEYS = ["network-driver", "subnet", "geth-port", "rpc-port", "workdir"]
-    OPTIONAL_KEYS = ["contracts", "governors", "bankers", "maintainers", "observers"]
-
 class Contract(Config):
     """Represents a solidity smart contract from the config file as an object."""
     
     MANDATORY_KEYS = ["path"]
     OPTIONAL_KEYS = []
 
-    SAVABLE_ATTRIBUTES = ["addr"]
-
     def __init__(self, name, config_dict, net_dir):
         super().__init__(name, config_dict)
 
         self.dir = os.path.join(net_dir, "contracts", self.name)
         self.bin = os.path.join(self.dir, "bin")
-        self.addr = None
+        self.info_file = os.path.join(self.dir, "info.json")
 
-        try:
-            self.info_file_attribs()
-        except:
-            pass
+        # write empty dict to info file
+        self.write_info_dict({})
 
     def create_dir(self):
         try:
@@ -982,22 +898,18 @@ class Contract(Config):
         except:
             raise ByteCodeNotFoundErr(f"Bytecode for contract '{self.name}' was not found. Is it already compiled?")
 
-    def get_abi(self, load_json=False):
-        """Gets ABI of this contract as python dictionary."""
+    def get_abi(self):
+        """Gets ABI of this contract."""
         abis = os.listdir(self.dir)
         abi = os.path.join(self.dir, abis[0])
 
         try:
             with open(abi, "r") as f:
-                abi = f.read()
+                abi = json.load(f)
 
-            if load_json:
-                return abi
-            else:
-                abi = json.loads(abi)
-                return abi
+            return abi
         except:
-            raise AbiNotFoundErr(f"ABI for contract '{self.name}' was not found. Is it already compiled?")
+            raise AbiNoteFoundErr(f"ABI for contract '{self.name}' was not found. Is it already compiled?")
 
     def compile(self, runtime=False):
         """Compiles contract to bytecode and ABI."""
@@ -1016,13 +928,17 @@ class Contract(Config):
         except:
             raise ContractCompilationErr(f"Could not compile contract '{self.name}'.")
 
-    def deploy(self, w3):
+    def deploy(http_provider, *args):
         """Deploys a contract on the blockchain."""
+        w3 = Web3(Web3.HTTPProvider(http_provider))
+        if not w3.isConnected():
+            raise ConnectionErr(f"Could not connect web3 to '{http_provider}'. Is the node running?")
+
         bytecode = self.get_bytecode()
         abi = self.get_abi()
         contract = w3.eth.contract(abi=abi, bytecode=bytecode)
 
-        tx_hash = contract.constructor().transact()
+        tx_hash = contract.constructor(*args).transact()
 
         return tx_hash
 
@@ -1106,7 +1022,7 @@ class Node(Config):
     """Represents a basic quorum node as an object and builds functionality on top of its node directory."""
 
     TYPES = ["quorum-node", "validator", "observer", "governor", "maintainer", "banker"]
-    MANDATORY_KEYS = ["org", "ip", "port", "rpc-port", "docker-ip"]
+    MANDATORY_KEYS = ["org", "ip", "port", "rpc-port", "docker-ip", "docker-port", "docker-rpc-port"]
     OPTIONAL_KEYS = ["accounts"]
 
     # binary directories
@@ -1117,7 +1033,10 @@ class Node(Config):
     INIT_FILES = [os.path.join("data", "geth", "chaindata", "CURRENT"), os.path.join("data", "geth", "chaindata", "LOCK"), os.path.join("data", "geth", "chaindata", "LOG")]
     SAVABLE_ATTRIBUTES = ["node_addr", "enode", "acc_addrs", "container_id", "is_init", "is_setup", "is_running"]
 
-    def __init__(self, name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir):
+    # docker related
+    CONTAINER_WORKDIR = "/home/quorum-node"
+
+    def __init__(self, name, type, node_dict, net_dir):
         assert type in self.TYPES
         super().__init__(name, node_dict)
 
@@ -1126,15 +1045,9 @@ class Node(Config):
         # functional attributes independent of config file
         self.dir = os.path.join(net_dir, self.org, self.type + "s", self.name)
         self.geth_dir = os.path.join(self.dir, "data", "geth")
-        #self.logs = os.path.join(self.dir, "node.log")
-
-        # setting docker ports
-        self.docker_geth_port = docker_geth_port
-        self.docker_rpc_port = docker_rpc_port
-        self.docker_dir = docker_dir
+        self.logs = os.path.join(self.dir, "node.log")
 
         # uninitialized attributes
-        self.accs = None
         self.acc_addrs = None
         self.container_id = None
         self.node_addr = None
@@ -1146,9 +1059,6 @@ class Node(Config):
         except:
             pass
 
-        # create account objects
-        self.create_acc_objs()
-
     def create_dir(self):
         """Creates this node's working directory as well as a geth directory."""
         try:
@@ -1156,30 +1066,20 @@ class Node(Config):
         except Exception as err:
             raise NodeDirCreationErr(f"Could not create directory for node '{self.name}' at '{self.dir}'.")
 
-    def create_acc_objs(self):
-        """Creates account objects from config file."""
-        if self.accounts is not None:
-            self.accs = {}
-            for a in self.accounts:
-                acc_name = list(a.keys())[0]
-                acc_obj = Account(acc_name, a[acc_name])
-
-                # try setting the address of the account (only works when it has been already created)
-                try:
-                    acc_obj.addr = self.acc_addrs[acc_name]
-                except:
-                    pass
-
-                self.accs[acc_name] = acc_obj
-
     def create_accs(self):
         """Creates a geth accounts for this node."""
-        if self.accs is not None:
-            self.acc_addrs = {}
-            for name, acc in self.accs.items():
-                acc.create(self.dir)
-                self.acc_addrs[name] = acc.addr
-        self.save()
+        if self.accounts is not None:
+            accounts = []
+            for acc in self.accounts:
+                acc_name = list(acc.keys())[0]
+                acc_obj = Account(acc_name, acc[acc_name])
+                acc_obj.create(self.dir)
+                accounts.append(acc_obj)
+
+            # update the account attribute and save node
+            self.accounts = accounts
+            self.acc_addrs = [acc.addr for acc in accounts]
+            self.save()
 
     def get_static_nodes(self):
         """Returns the nodes's local 'static-nodes.json' as a list."""
@@ -1201,6 +1101,36 @@ class Node(Config):
                 json.dump(static_nodes, f, indent=2)
         except:
             raise StaticNodesErr(f"Could not write 'static-nodes.json' at '{static_nodes_path}'.")
+
+    def save(self):
+        """Saves a node by writing its important attributes to a 'info.json' in its working directory."""
+        # deciding which keys to save
+        dict = {}
+        for attr in self.SAVABLE_ATTRIBUTES:
+            if attr in self.__dict__.keys():
+                dict[attr] = self.__dict__[attr]
+            elif attr in dir(self.__class__):
+                dict[attr] = getattr(self.__class__, attr)(self)
+
+        # write keys to file
+        try:
+            with open(os.path.join(self.dir, "info.json"), "w") as f:
+                json.dump(dict, f, indent=2)
+        except:
+            raise Exception(f"Could not write '{self.name}' dictionary to 'info.json'.")
+
+    def info_file_attribs(self):
+        """Checks if 'info.json' exists and reads attributes from it."""
+        info_file = os.path.join(self.dir, "info.json")
+        if os.path.isfile(info_file):
+            with open(info_file, "r") as f:
+                content = f.read()
+
+            attr_dict = json.loads(content)
+
+            for attr in attr_dict:
+                if attr in self.__dict__.keys():
+                    self.__dict__[attr] = attr_dict[attr]
 
     def init(self):
         """Calls 'geth init ...' on node's working directory."""
@@ -1262,16 +1192,6 @@ class Node(Config):
             Shell.call(cmd, check_ret=False)
             self.save()
 
-    def up(self, net):
-        """Boots up validator node in a docker container with name 'self.name'."""
-        if not self.is_running():
-            uid = os.getuid()
-            cmd = f"docker run -d --rm --user {uid} -w {self.docker_dir} -v {self.dir}:{self.docker_dir} --name {self.name} --ip {self.docker_ip} -p {self.rpc_port}:{self.docker_rpc_port} -p {self.port}:{self.docker_geth_port} --network {net.name} -e ISTANBUL_BLOCK_PERIOD={self.ISTANBUL_BLOCK_PERIOD} -e NETWORK_ID={net.id} {self.type}"
-            self.container_id = Shell.call(cmd, check_ret=True).replace("\n", "")[:12]
-            self.save()
-        else:
-            raise NodeAlreadyRunningErr(f"Node '{self.name}' is already running. Please shut all nodes down, before trying to boot up.")
-
 class Validator(Node):
     """Represents a validor node as an object."""
 
@@ -1280,9 +1200,11 @@ class Validator(Node):
     # istanbul config
     ISTANBUL_BLOCK_PERIOD = 5
 
-    def __init__(self, name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir):
+    def __init__(self, name, type, node_dict, net_dir):
         assert type in self.TYPES
-        super().__init__(name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir)
+        super().__init__(name, type, node_dict, net_dir)
+
+        # validator specific attributes
 
     def setup(self):
         """Calls 'istanbul setup ...' on validator's working directory."""
@@ -1299,7 +1221,7 @@ class Validator(Node):
 
         # write utility attributes for later refrences
         self.node_addr, pubkey = self.extract_info_from_istanbul_output(out)
-        self.enode = self.edit_enode(pubkey, self.docker_ip, self.docker_geth_port)
+        self.enode = self.edit_enode(pubkey, self.docker_ip, self.docker_port)
 
         # copy nodekey to geth directory and remove directory '0'
         nodekey_path = os.path.join(self.dir, "0", "nodekey")
@@ -1392,14 +1314,25 @@ class Validator(Node):
         genesis["alloc"][addr] = {"balance": str(balance)}
         self.set_genesis(genesis)
 
+    def up(self, net):
+        """Boots up validator node in a docker container with name self.name."""
+        if not self.is_running():
+            uid = os.getuid()
+            #cmd = f"docker run -d --rm --user {uid} -w {self.CONTAINER_WORKDIR} -v {self.dir}:{self.CONTAINER_WORKDIR} --name {self.name} --ip {self.docker_ip} -p {self.rpc_port}:{self.docker_rpc_port} --network {net.name} {self.type} geth --allow-insecure-unlock --datadir data --nodiscover --istanbul.blockperiod {self.ISTANBUL_BLOCK_PERIOD} --syncmode full --mine --minerthreads 1 --verbosity 5 --networkid {net.id} --rpc --rpcaddr 0.0.0.0 --rpcport {self.docker_rpc_port} --rpcapi admin,db,eth,debug,mine,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port {self.docker_port}"
+            cmd = f"docker run -d --rm --user {uid} -w {self.CONTAINER_WORKDIR} -v {self.dir}:{self.CONTAINER_WORKDIR} --name {self.name} --ip {self.docker_ip} -p {self.rpc_port}:{self.docker_rpc_port} -p {self.geth_port}"
+            self.container_id = Shell.call(cmd, check_ret=True).replace("\n", "")[:12]
+            self.save()
+        else:
+            raise NodeAlreadyRunningErr(f"Node '{self.name}' is already running. Please shut all nodes down, before trying to boot up.")
+
 class NonValidatorNode(Node):
     """Represents a non-validator node as an object. These nodes share certain properties such as that they need to have at least one account associated with them."""
 
     SETUP_FILES = [os.path.join("genesis.json")]
 
-    def __init__(self, name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir):
+    def __init__(self, name, type, node_dict, net_dir):
         assert type in self.TYPES
-        super().__init__(name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir)
+        super().__init__(name, type, node_dict, net_dir)
 
     def setup(self, val_genesis):
         """Copies genesis block that has been created by a validator to its own directory and sets up nodekey and enode for this node."""
@@ -1416,7 +1349,7 @@ class NonValidatorNode(Node):
         # derive enode from nodekey
         cmd = f"{self.BOOTNODE_BIN} --nodekey {nodekey_path} --writeaddress"
         pubkey = Shell.call(cmd, check_ret=True).replace("\n", "")
-        enode = self.construct_enode(pubkey, self.docker_ip, self.docker_geth_port)
+        enode = self.construct_enode(pubkey, self.docker_ip, self.docker_port)
         addr = self.addr_from_pubkey(pubkey)
 
         return enode, addr
@@ -1438,7 +1371,7 @@ class NonValidatorNode(Node):
         """Boots up non-validator node in a docker container with name self.name."""
         if not self.is_running():
             uid = os.getuid()
-            cmd = f"docker run -d --rm --user {uid} -w {self.docker_dir} -v {self.dir}:{self.docker_dir} --name {self.name} --ip {self.docker_ip} -p {self.rpc_port}:{self.docker_rpc_port} --network {net.name} {self.type} geth --allow-insecure-unlock --datadir data --nodiscover --syncmode full --verbosity 5 --networkid {net.id} --rpc --rpcaddr 0.0.0.0 --rpcport {self.docker_rpc_port} --rpcapi admin,db,eth,debug,mine,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port {self.docker_geth_port}"
+            cmd = f"docker run -d --rm --user {uid} -w {self.CONTAINER_WORKDIR} -v {self.dir}:{self.CONTAINER_WORKDIR} --name {self.name} --ip {self.docker_ip} -p {self.rpc_port}:{self.docker_rpc_port} --network {net.name} {self.type} geth --allow-insecure-unlock --datadir data --nodiscover --syncmode full --verbosity 5 --networkid {net.id} --rpc --rpcaddr 0.0.0.0 --rpcport {self.docker_rpc_port} --rpcapi admin,db,eth,debug,mine,net,shh,txpool,personal,web3,quorum,istanbul --emitcheckpoints --port {self.docker_port}"
             self.container_id = Shell.call(cmd, check_ret=True).replace("\n", "")[:12]
             self.save()
         else:
@@ -1450,28 +1383,15 @@ class Maintainer(NonValidatorNode):
     def deploy_contract(self, contract, *args):
         """Deploys given contract to the blockchain."""
         # unlock main account, create tx and lock account again
-        if "main" in self.accs.keys():
-            w3 = Web3(Web3.HTTPProvider(f"http://{self.ip}:{self.rpc_port}"))
-            
-            addr = self.accs["main"].addr
-            passphrase = self.accs["main"].passphrase
-            w3.middleware_onion.inject(web3.middleware.geth_poa_middleware, layer=0)
-            w3.geth.personal.unlockAccount(addr, passphrase)
+        w3.geth.personal.unlock_account(Web3.toChecksumAddress(self.main_addr), self.main_acc.passphrase)
+        tx_hash = contract.deploy(*args)
+        w3.geth.personal.lock_account(Web3.toChecksumAddress(self.main_addr))
 
-            w3.eth.defaultAccount = addr
-            bytecode = contract.get_bytecode()
-            abi = contract.get_abi()
-            eth_contract = w3.eth.contract(abi=abi, bytecode=bytecode)
-            print()
-            print(args)
-            print()
-            tx_hash = eth_contract.constructor(*args).transact()
-            tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+        # get contract's address from tx_hash
+        tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
 
-            contract.addr = tx_receipt.contractAddress
-            contract.save()
-        else:
-            raise MainAccountErr(f"No geth main account found for maintainer node '{self.name}'.")
+        print(tx_receipt)
+    
 
 
 if __name__ == "__main__":

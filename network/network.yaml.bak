@@ -5,12 +5,9 @@ network:
     - central-bank
     - government
   
-  docker-settings:
-    network-driver: "bridge"
-    subnet: "172.19.0.0/16"
-    geth-port: 30300
-    rpc-port: 22000
-    workdir: "/home/quorum-node"
+  # docker network
+  driver: "bridge"
+  subnet: "172.19.0.0/16"
 
   validators:
     - central-bank.val0:
@@ -20,6 +17,9 @@ network:
         port: 30300
         rpc-port: 22000
         docker-ip: 172.19.0.10
+        docker-port: 30300
+        docker-rpc-port: 22000
+        # do not use this passphrase in production
         accounts:
           # balance in WEI, below seen are 100 ETH
           # if you do not want any pre-allocated funds please put null and not 0!
@@ -35,26 +35,34 @@ network:
         port: 30301
         rpc-port: 22001
         docker-ip: 172.19.0.20
+        docker-port: 30300
+        docker-rpc-port: 22000
     - government.val0:
         org: government
         ip: 127.0.0.1
         port: 30302
         rpc-port: 22002
         docker-ip: 172.19.0.30
+        docker-port: 30300
+        docker-rpc-port: 22000
     - government.val1:
         org: government
         ip: 127.0.0.1
         port: 30303
         rpc-port: 22003
         docker-ip: 172.19.0.40
+        docker-port: 30300
+        docker-rpc-port: 22000
   
   maintainers:
     - government.mnt0:
         org: government
         ip: 127.0.0.1
         port: 30304
-        rpc-port: 22004
+        rpc-port: 22003
         docker-ip: 172.19.0.50
+        docker-port: 30300
+        docker-rpc-port: 22000
         accounts:
           - main:
               passphrase: root
@@ -63,8 +71,9 @@ network:
   contracts:
     - dummy:
         path: ../contracts/Dummy.sol
-    - governing:
-        path: ../contracts/Governing.sol
+        # addr: "0x0000000000000000000000000000000000000020"
+    #- governing:
+        #path: ../contracts/Governing.sol
 
 
 # vim: ft=yaml

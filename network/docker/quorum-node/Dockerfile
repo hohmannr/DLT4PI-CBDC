@@ -1,9 +1,13 @@
 FROM alpine:latest
 
-ENV PRIVATE_CONFIG "ignore"
-
 ARG UNAME="quorum-node"
 ARG UID=1000
+ARG DOCKER_GETH_PORT=30300
+ARG DOCKER_RPC_PORT=22000
+
+ENV PRIVATE_CONFIG="ignore"
+ENV GETH_PORT=$DOCKER_GETH_PORT
+ENV RPC_PORT=$DOCKER_RPC_PORT
 
 # adding dependecies
 RUN apk add git make go linux-headers
@@ -17,7 +21,6 @@ RUN git clone https://github.com/jpmorganchase/quorum.git &&\
     make &&\
     mv ./build/bin/* /bin &&\
     cd .. && rm -r quorum
-
 
 CMD ["/bin/sh"]
 
