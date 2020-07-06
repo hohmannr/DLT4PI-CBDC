@@ -133,11 +133,17 @@ When using `network.py` to setup the network, following directory logic is creat
 - `genesis.json` - node's genesis file (is the same for all nodes)
 - `data` - `geth` data direcory
 - `info.json` - a node/contract information file, contains addresses, account data, etc.
-- 
+- `<contract-name>` - directory containing contract ABI
+- `<contract-name>.abi` - contract's ABI
+- `<contract-name>`.bin - contract's compiled bytecode
 
 This structure is generated from the `network.yaml` and represents all nodes and organizations listed in there. It is needed for the setup with docker containers.
 
 ## Changelog
+
+- version 0.3:
+    - added smart contract creation automation
+    - added maintainer node type
 
 - version 0.2:
     - added docker container support (this will be the default)

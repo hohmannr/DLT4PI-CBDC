@@ -310,7 +310,7 @@ class Command():
             with open(cls.CONFFILE) as f:
                 conf_dict = yaml.full_load(f)
         except FileNotFoundError as err:
-            raise ConfigFileNotFoundErr(f"Could not find config file at '{self.conf_file}'.")
+            raise ConfigFileNotFoundErr(f"Could not find config file at '{cls.conf_file}'.")
 
         return conf_dict
 

@@ -1,34 +1,51 @@
 package main
 
 import(
-    "fmt"
-    "os"
-    "html"
+    _ "fmt"
+    "context"
+    "time"
     "net/http"
-    "encoding/json"
 
-    _ "github.com/sirupsen/logrus"
-    _ "github.com/gorilla/mux"
+    "github.com/hohmannr/blockchain-explorer/kraken"
+    "github.com/hohmannr/blockchain-explorer/database"
+    "github.com/gorilla/mux"
+    log "github.com/sirupsen/logrus"
+    "go.mongodb.org/mongo-driver/mongo"
+    "go.mongodb.org/mongo-driver/mongo/options"
+)
 
-    "github.com/hohmannr/blockchain-explorer/chain"
-    _ "github.com/ethereum/go-ethereum/common"
+const(
+    RPC_URL  = "http://127.0.0.1"
+    RPC_PORT = "22000"
+    CHAIN_ID = 10
+    MONGODB_URI = "mongodb://127.0.0.1:27017"
+    MONGODB_NAME = "observer"
 )
 
 func main() {
-    port := os.Getenv("BLOCKEXPLORER_PORT")
-    if port == "" {
-        port = "8000"
+    // Connect to geth RPC
+    rpcClient := &kraken.RPCClient{RPC_URL, RPC_PORT, CHAIN_ID}
+    
+    // Connect to database
+    ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer cancel()
+    mongoClient, err := mongo.NewClient(options.Client().ApplyURI(MONGODB_URI))
+    if err != nil {
+        log.Fatalln(err)
     }
+    err = mongoClient.Connect(ctx)
+    if err != nil {
+        log.Fatal(err)
+    }
+    mongoDB := mongoClient.Database(MONGODB_NAME)
 
-    // hash := common.HexToHash("0x98aa8c2dd8b7fa0c950157c491b42784ddff9183")
-    geth := chain.NewConnection()
-    defer geth.Close()
+    // Routers
+    router := mux.NewRouter().StrictSlash(true)
 
-    blk, _ := geth.GetBlockByNumber(123)
-    jsonBlk, _ := json.Marshal(blk)
-    fmt.Println(string(jsonBlk))
+    err = database.SyncFullBlockchain(ctx, rpcClient, mongoDB)
+    if err != nil {
+        log.Fatal(err)
+    }
+    http.ListenAndServe(":8080", router)
 }
 
-func serveDashboard(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprint(w, "Hello", html.EscapeString(r.URL.Path))
-}
