@@ -10,7 +10,7 @@ import traceback
 import web3
 from web3 import Web3
 
-CONTRACT_NAME = "CBDC"
+CONTRACT_NAME = "CCBDC"
 CONTRACT_INFO_FILE = f"{CONTRACT_NAME}-contract.info"
 NODE_INFO_FILE= "info.json"
 RPC_IPC = os.path.join("data", "geth.ipc")

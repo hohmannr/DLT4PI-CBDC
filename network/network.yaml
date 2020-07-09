@@ -7,7 +7,8 @@ network:
     - government
 
     # private banks
-    - acleda
+    - aclydia
+    - bb-bank
   
   docker-settings:
     network-driver: "bridge"
@@ -84,8 +85,8 @@ network:
               passphrase: root
 
   bankers:
-    - acleda.bnk0:
-        org: acleda
+    - aclydia.bnk0:
+        org: aclydia
         ip: 127.0.0.1
         port: 30307
         rpc-port: 22007
@@ -94,8 +95,18 @@ network:
         accounts:
           - main:
               passphrase: root
+    - bb-bank.bnk0:
+        org: bb-bank
+        ip: 127.0.0.1
+        port: 30308
+        rpc-port: 22008
+        docker-ip: 172.19.0.90
+        token-supply: 1000
+        accounts:
+          - main:
+              passphrase: root
 
-  # contracts to be encoded into genesis block
+  # contracts to be setup by maintainer
   contracts:
     - Governing:
         path: ../contracts/Governing.sol

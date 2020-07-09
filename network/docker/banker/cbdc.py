@@ -102,8 +102,8 @@ class CBDC(Contract):
             tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
             return self.instance.events.Minting().processReceipt(tx_receipt)
         elif func_name == "alloc":
-            addr, amount = args
-            tx_hash = self.instance.functions.allocate(addr, amount).transact({"gas": 1000000})
+            addr, amount, merchcode = args
+            tx_hash = self.instance.functions.allocate(addr, amount, merchcode).transact({"gas": 1000000})
             tx_receipt = self.w3.eth.waitForTransactionReceipt(tx_hash)
             return self.instance.events.Allocation().processReceipt(tx_receipt)
         else:
@@ -133,8 +133,9 @@ def arg_parser():
 
     # alloc subcmd
     alloc_parser = subparsers.add_parser("alloc", help="Allocates CBDC into given address. Only available to banker nodes.")
-    alloc_parser.add_argument("-a", required=True, type=str, help="Address to be allocated to", metavar="<addr>")
+    alloc_parser.add_argument("-a", required=True, type=str, help="Address to be allocated to.", metavar="<addr>")
     alloc_parser.add_argument("-n", required=True, type=int, help="Amount to be allocated.", metavar="<amount>")
+    alloc_parser.add_argument("-m", required=True, type=int, help="Merchant code for address.", metavar="<merchant-code>")
 
     return parser
 
@@ -157,7 +158,7 @@ def main():
     elif args.cmd == "mint":
         print(">", contract.call("mint", args.a, args.n))
     elif args.cmd == "alloc":
-        print(">", contract.call("alloc", args.a, args.n))
+        print(">", contract.call("alloc", args.a, args.n, args.m))
 
 if __name__ == "__main__":
     main()

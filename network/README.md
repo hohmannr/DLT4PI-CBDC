@@ -14,13 +14,14 @@ This is a network proposal, that is the basis for a publicly visible but permiss
 
 The network configuration file `network.yaml` is used to define the network participants (organizations) with their specific nodes.
 
-<!-- TODO: DESCRIBE NETWORK CONFIG FILE MORE -->
+More on the `network.yaml` file [here](http://www.url.com)
 
 The included `network.yaml` configuration models a central bank which issues a CBDC over this network. It includes
 
 - 4x `validators` from two different organizations (central bank and government)
-
-<!-- TODO: ADD NODES HERE -->
+- 2x `governors` one from the central bank and one from the government
+- 2x `bankers` from two different private banks (aclydia and bb-bank)
+- 1x `maintainer` from the government
 
 ## Network Script
 
@@ -80,6 +81,17 @@ $ ./network.py up
 Now the network configured in `network.yaml` should be running.
 Every node is a seperate running (quorum flavored) `geth` node.
 
+**Step 4** - Setting up contracts
+
+```
+$ ./network.py setup
+```
+
+This sets up all contracts specified in `network.yaml`. There are three types of contracts: `Governing.sol`, `CBDC.sol`, `CCBDC.sol`. They are at the core of the proposed payment system.
+
+For more information on the Contracts, look [here](http://www.url.com)
+
+
 **Stopping running nodes**
 
 ```
@@ -117,12 +129,13 @@ When using `network.py` to setup the network, following directory logic is creat
                 +-- genesis.json
                 +-- data
                 +-- info.json
+                +-- <contract-name>-contract.json
     +-- contracts
         +-- <contract-name>
             +-- <contract-name>.abi
             +-- info.json
             +-- bin
-                +-- <contract-name>.abi
+                +-- <contract-name>.bin
             
 ```
 
@@ -139,7 +152,14 @@ When using `network.py` to setup the network, following directory logic is creat
 
 This structure is generated from the `network.yaml` and represents all nodes and organizations listed in there. It is needed for the setup with docker containers.
 
+More on the file-structure [here](http://www.url.com).
+More on the docker setup used [here](http://www.url.com).
+
 ## Changelog
+
+- version 0.4:
+    - added lacking node types (observer, banker, governor)
+    - added contract interface for banker and governor node
 
 - version 0.3:
     - added smart contract creation automation
