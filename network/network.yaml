@@ -115,5 +115,4 @@ network:
     - CCBDC:
         path: ../contracts/CCBDC.sol
 
-
 # vim: ft=yaml
