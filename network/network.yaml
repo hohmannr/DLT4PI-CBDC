@@ -2,8 +2,12 @@ network:
   id: 10
   name: cbdc-net
   orgs:
+    # consortium
     - central-bank
     - government
+
+    # private banks
+    - acleda
   
   docker-settings:
     network-driver: "bridge"
@@ -59,12 +63,46 @@ network:
           - main:
               passphrase: root
 
+  governors:
+    - central-bank.gov0:
+        org: central-bank
+        ip: 127.0.0.1
+        port: 30305
+        rpc-port: 22005
+        docker-ip: 172.19.0.60
+        accounts:
+          - main:
+              passphrase: root
+    - government.gov0:
+        org: government
+        ip: 127.0.0.1
+        port: 30306
+        rpc-port: 22006
+        docker-ip: 172.19.0.70
+        accounts:
+          - main:
+              passphrase: root
+
+  bankers:
+    - acleda.bnk0:
+        org: acleda
+        ip: 127.0.0.1
+        port: 30307
+        rpc-port: 22007
+        docker-ip: 172.19.0.80
+        token-supply: 1000
+        accounts:
+          - main:
+              passphrase: root
+
   # contracts to be encoded into genesis block
   contracts:
-    - dummy:
-        path: ../contracts/Dummy.sol
-    - governing:
+    - Governing:
         path: ../contracts/Governing.sol
+    - CBDC:
+        path: ../contracts/CBDC.sol
+    - CCBDC:
+        path: ../contracts/CCBDC.sol
 
 
 # vim: ft=yaml

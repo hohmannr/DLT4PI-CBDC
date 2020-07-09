@@ -1,4 +1,4 @@
-pragma solidity >= 0.6.0 <0.7.0;
+pragma solidity >=0.6.0 <0.7.0;
 
 contract Governing {
     
@@ -17,18 +17,23 @@ contract Governing {
         
         for(uint i = 0; i < _governors.length; i++) {
             governors[_governors[i]] = true;
+            governorCount++;
         }
         for(uint i = 0; i < _maintainers.length; i++) {
             maintainers[_maintainers[i]] = true;
+            maintainerCount++;
         }
         for(uint i = 0; i < _observers.length; i++) {
             observers[_observers[i]] = true;
+            observerCount++;
         }
         for(uint i = 0; i < _bankers.length; i++) {
             bankers[_bankers[i]] = true;
+            bankerCount++;
         }
         for(uint i = 0; i < _blacklist.length; i++) {
             blacklist[_blacklist[i]] = true;
+            blacklistCount++;
         }
     }
 
@@ -98,7 +103,12 @@ contract Governing {
         }
     }
 
-    function makeProposal(address _candidate, NodeType _asType, ProposalType _proposalType) public returns (uint) {
+    event NewProposal(
+        uint time,
+        uint indexed proposalID
+    );
+
+    function makeProposal(address _candidate, NodeType _asType, ProposalType _proposalType) public {
         // make sure that only governors can propose
         require(governors[msg.sender], "You must be a governor to make a proposal.");
         // make sure that address is not already a node
@@ -132,8 +142,14 @@ contract Governing {
         proposalCount++;
         proposals[proposalCount] = proposal;
 
-        return proposalCount;
+        emit NewProposal(now, proposalCount);
     }
+
+    event NewVote(
+        uint time,
+        uint indexed proposalID,
+        uint voteCount
+    );
 
     function vote(uint _proposalID) public {
         require(governors[msg.sender], "You must be a governor to make a proposal.");
@@ -145,6 +161,8 @@ contract Governing {
         proposal.voteCount++;
         proposal.hasVoted[msg.sender] = true;
 
+        emit NewVote(now, _proposalID, proposal.voteCount);
+
         // check if votes have surpassed the threshold
         if(proposal.voteCount > proposal.voteThreshold) {
             proposal.accepted = true;
@@ -154,7 +172,6 @@ contract Governing {
             } else {
                 removeNode(proposal.candidate, proposal.asType);
             }
-
         }
     }
 }

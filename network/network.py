@@ -127,6 +127,9 @@ class AbiNotFoundErr(Exception):
 class ObjNotSavableErr(Exception):
     pass
 
+class GoverningContractNotDeployedErr(Exception):
+    pass
+
 # COMMAND
 class Command():
     """Defines the working shell environment."""
@@ -713,6 +716,11 @@ class Setup(Command):
         try:
             cls.compile_contracts(net)
             cls.deploy_contracts(net)
+            cls.contract_setup(net)
+            cls.print_progress("Copying contract info to nodes.", cls.copy_contract_info, net)
+            # printing contract address to stdout
+            for contract in net.contracts:
+                contract.print_status()
         except Exception as err:
             cls.handle_err(err)
 
@@ -728,19 +736,101 @@ class Setup(Command):
         if net.maintainers is not None and net.maintainers != []:
             lead_maintainer = net.maintainers[0]
             for contract in net.contracts:
-                # create args for constructor of known contracts such as Governing.sol
+                # create args for constructor of special contracts that depend on each other such as Governing.sol
                 args = []
-                if contract.name == "governing":
-                    governors = [g.acc_addrs["main"] for g in net.governors] if net.governors is not None else []
-                    maintainers = [m.acc_addrs["main"] for m in net.maintainers] if net.maintainers is not None else []
-                    observers = [o.acc_addrs["main"] for o in net.observers] if net.observers is not None else []
-                    bankers = [b.acc_addrs["main"] for b in net.bankers] if net.bankers is not None else []
-                    blacklist = []
-                    args = [governors, maintainers, observers, bankers, blacklist]
+                if contract.name == "Governing":
+                    args = cls.governing_contract_args(net)
+                elif contract.name == "CBDC":
+                    args = cls.cbdc_contract_args(net)
+                elif contract.name == "CCBDC":
+                    args = cls.ccbdc_contract_args(net)
 
                 cls.print_progress(f"Deploying contract '{contract.name}'.", lead_maintainer.deploy_contract, contract, *args)
+
         else:
             raise NoMaintainerPresentErr(f"There is no maintainer configured in the network's config file, ergo you cannot deploy smart contracts.")
+
+    @classmethod
+    def governing_contract_args(cls, net):
+        """Arguments for the governing contract."""
+        governors = [g.acc_addrs["main"] for g in net.governors] if net.governors is not None else []
+        maintainers = [m.acc_addrs["main"] for m in net.maintainers] if net.maintainers is not None else []
+        observers = [o.acc_addrs["main"] for o in net.observers] if net.observers is not None else []
+        bankers = [b.acc_addrs["main"] for b in net.bankers] if net.bankers is not None else []
+        blacklist = []
+        args = [governors, maintainers, observers, bankers, blacklist]
+
+        return args
+
+    @classmethod
+    def cbdc_contract_args(cls, net):
+        """Arguments for the CBDC contract."""
+        # get governing contract address for CBDC contract since it is needed
+        addr = None
+        for c in net.contracts:
+            if c.name == "Governing":
+                addr = c.addr
+                break
+
+        args = []
+        if addr is not None:
+            args.append(addr)
+        else:
+            raise GoverningContractNotDeployedErr("No address for Governing Contract found. Is it already deployed?")
+
+        # get token supply from banker nodes
+        bankers = []
+        token_supply = []
+        for b in net.bankers:
+            if b.token_supply is not None:
+                token_supply.append(b.token_supply)
+                bankers.append(b.acc_addrs["main"])
+
+        args.append(bankers)
+        args.append(token_supply)
+
+        return args
+
+    @classmethod
+    def ccbdc_contract_args(cls, net):
+        """Arguments for the CBDC contract."""
+        # get governing contract address for CBDC contract since it is needed
+        addr = None
+        for c in net.contracts:
+            if c.name == "Governing":
+                addr = c.addr
+                break
+
+        return [addr]
+
+    @classmethod
+    def contract_setup(cls, net):
+        """Calls contract setup functions to fully set them up."""
+        if net.maintainers is not None and net.maintainers != []:
+            lead_maintainer = net.maintainers[0]
+            for contract in net.contracts:
+                # create args for constructor of special contracts that depend on each other such as Governing.sol
+                if contract.name == "CBDC":
+                    for c in net.contracts:
+                        if c.name == "CCBDC":
+                            addr = c.addr
+                            break
+                    cls.print_progress(f"Setting up contract '{contract.name}'.", lead_maintainer.setup_contract, contract, addr)
+                elif contract.name == "CCBDC":
+                    for c in net.contracts:
+                        if c.name == "CBDC":
+                            addr = c.addr
+                            break
+                    cls.print_progress(f"Setting up contract '{contract.name}'.", lead_maintainer.setup_contract, contract, addr)
+        else:
+            raise NoMaintainerPresentErr(f"There is no maintainer configured in the network's config file, ergo you cannot deploy smart contracts.")
+
+    @classmethod
+    def copy_contract_info(cls, net):
+        """Copies contract interaction tools to nodes."""
+        for c in net.contracts:
+            for node in net.nodes:
+                c.copy_info_to(node.dir)
 
 class Down(Command):
     """Shuts down all docker containers created from config file."""
@@ -924,6 +1014,10 @@ class Network(Config):
             return Validator(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
         elif type == "maintainer":
             return Maintainer(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
+        elif type == "governor":
+            return Governor(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
+        elif type == "banker":
+            return Banker(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
     
     def create_contract(self, contract_dict):
         """Creates a contract object."""
@@ -948,12 +1042,13 @@ class Contract(Config):
     MANDATORY_KEYS = ["path"]
     OPTIONAL_KEYS = []
 
-    SAVABLE_ATTRIBUTES = ["addr"]
+    SAVABLE_ATTRIBUTES = ["addr", "get_abi"]
 
     def __init__(self, name, config_dict, net_dir):
         super().__init__(name, config_dict)
 
         self.dir = os.path.join(net_dir, "contracts", self.name)
+        self.info_file = os.path.join(self.dir, "info.json")
         self.bin = os.path.join(self.dir, "bin")
         self.addr = None
 
@@ -971,7 +1066,13 @@ class Contract(Config):
     def get_bytecode(self):
         """Gets bytecode of this contract as 0x-prefixed hex string."""
         bins = os.listdir(self.bin)
-        contract_bin = os.path.join(self.bin, bins[0])
+        contract_bin = None
+        for cbin in bins:
+            if cbin == f"{self.name}.bin":
+                contract_bin = os.path.join(self.bin, cbin)
+                break
+        if cbin is None:
+            raise ByteCodeNotFoundErr(f"Bytecode for contract '{self.name}' was not found. Is it already compiled?")
 
         try:
             bytecode = "0x"
@@ -986,6 +1087,12 @@ class Contract(Config):
         """Gets ABI of this contract as python dictionary."""
         abis = os.listdir(self.dir)
         abi = os.path.join(self.dir, abis[0])
+        for a in abis:
+            if a == f"{self.name}.abi":
+                abi = os.path.join(self.dir, a)
+                break
+        if abi is None:
+            raise AbiNotFoundErr(f"ABI for contract '{self.name}' was not found. Is it already compiled?")
 
         try:
             with open(abi, "r") as f:
@@ -1072,6 +1179,22 @@ class Contract(Config):
         info_dict["addr"] = addr
         self.write_info_file(info_dict)
 
+    def copy_info_to(self, dir):
+        """Copies 'info.json' to given directory."""
+        shutil.copy(self.info_file, os.path.join(dir, f"{self.name}-contract.info"))
+
+    def print_status(self):
+        """Prints node's status to stdoud."""
+        str = f"\n{Deco.STATUS}[STAT]{Deco.RESET}\t{self.name}"
+        for attr in self.SAVABLE_ATTRIBUTES:
+            if attr == "get_abi":
+                continue
+            if attr in self.__dict__.keys():
+                str += f"\n\t{attr}: {self.__dict__[attr]}"
+            elif attr in dir(self.__class__):
+                str += f"\n\t{attr}: {getattr(self.__class__, attr)(self)}"
+        print(str)
+
 class Account(Config):
     """Represents a geth account as an object."""
 
@@ -1115,7 +1238,7 @@ class Node(Config):
     BOOTNODE_BIN = os.path.join(Command.WORKDIR, "quorum", "build", "bin", "bootnode")
 
     INIT_FILES = [os.path.join("data", "geth", "chaindata", "CURRENT"), os.path.join("data", "geth", "chaindata", "LOCK"), os.path.join("data", "geth", "chaindata", "LOG")]
-    SAVABLE_ATTRIBUTES = ["node_addr", "enode", "acc_addrs", "container_id", "is_init", "is_setup", "is_running"]
+    SAVABLE_ATTRIBUTES = ["node_addr", "enode", "acc_addrs", "container_id", "ip", "rpc_port", "is_init", "is_setup", "is_running"]
 
     def __init__(self, name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir):
         assert type in self.TYPES
@@ -1395,6 +1518,7 @@ class Validator(Node):
 class NonValidatorNode(Node):
     """Represents a non-validator node as an object. These nodes share certain properties such as that they need to have at least one account associated with them."""
 
+    MANDATORY_KEYS = ["org", "ip", "port", "rpc-port", "docker-ip", "accounts"]
     SETUP_FILES = [os.path.join("genesis.json")]
 
     def __init__(self, name, type, node_dict, net_dir, docker_geth_port, docker_rpc_port, docker_dir):
@@ -1447,6 +1571,25 @@ class NonValidatorNode(Node):
 class Maintainer(NonValidatorNode):
     """Represents a maintainer node as an object. Maintainers deploy contracts to the network."""
 
+    def setup_contract(self, contract, addr):
+        """Sets up CBDC contract."""
+        if "main" in self.accs.keys():
+            w3 = Web3(Web3.HTTPProvider(f"http://{self.ip}:{self.rpc_port}"))
+            
+            addr = self.accs["main"].addr
+            passphrase = self.accs["main"].passphrase
+            w3.middleware_onion.inject(web3.middleware.geth_poa_middleware, layer=0)
+            w3.geth.personal.unlockAccount(addr, passphrase)
+
+            w3.eth.defaultAccount = addr
+            bytecode = contract.get_bytecode()
+            abi = contract.get_abi()
+            eth_contract = w3.eth.contract(contract.addr, abi=abi, bytecode=bytecode)
+            tx_hash = eth_contract.functions.setup(addr).transact()
+            tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
+        else:
+            raise MainAccountErr(f"No geth main account found for maintainer node '{self.name}'.")
+
     def deploy_contract(self, contract, *args):
         """Deploys given contract to the blockchain."""
         # unlock main account, create tx and lock account again
@@ -1462,9 +1605,6 @@ class Maintainer(NonValidatorNode):
             bytecode = contract.get_bytecode()
             abi = contract.get_abi()
             eth_contract = w3.eth.contract(abi=abi, bytecode=bytecode)
-            print()
-            print(args)
-            print()
             tx_hash = eth_contract.constructor(*args).transact()
             tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
 
@@ -1473,6 +1613,12 @@ class Maintainer(NonValidatorNode):
         else:
             raise MainAccountErr(f"No geth main account found for maintainer node '{self.name}'.")
 
+class Governor(NonValidatorNode):
+    """Represents a governor node as an object."""
+
+class Banker(NonValidatorNode):
+    """Represents a banker node as an object."""
+    OPTIONAL_KEYS = ["accounts", "token-supply"]
 
 if __name__ == "__main__":
     sys.exit(Command.call())

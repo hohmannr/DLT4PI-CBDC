@@ -42,9 +42,17 @@ func main() {
     // Routers
     router := mux.NewRouter().StrictSlash(true)
 
-    err = database.SyncFullBlockchain(ctx, rpcClient, mongoDB)
+    // only sync full blockchain if it has not yet happened
+    nDocs, err := database.EstimateDocuments(ctx, mongoDB)
     if err != nil {
         log.Fatal(err)
+    }
+    if nDocs < 10 {
+        err = database.SyncFullBlockchain(ctx, rpcClient, mongoDB)
+        if err != nil {
+            log.Fatal(err)
+    }
+
     }
     http.ListenAndServe(":8080", router)
 }
