@@ -14,7 +14,7 @@ This is a network proposal, that is the basis for a publicly visible but permiss
 
 The network configuration file `network.yaml` is used to define the network participants (organizations) with their specific nodes.
 
-More on the `network.yaml` file [here](http://www.url.com).
+More on the `network.yaml` file [here](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/wiki/CONFIG.md).
 
 The included `network.yaml` configuration models a central bank which issues a CBDC over this network. It includes
 
@@ -65,7 +65,7 @@ $ cd istanbul-tools && make && cd ..
 $ ./network.py prepare
 ```
 
-This makes the dependencies and builds up the needed docker images for all node-types from each `Dockerfile` located at `./docker/<node-tpye>/Dockerfile`. For more information on how we use docker in this prototype please check [here](http://www.url.com). Depending on your machine, this can take a while, since it is compiling quorum/geth from source in the `quorum-node` base container, since the officially provided quorum-image has no Istanbul BFT built in.
+This makes the dependencies and builds up the needed docker images for all node-types from each `Dockerfile` located at `./docker/<node-tpye>/Dockerfile`. For more information on how we use docker in this prototype please check [here](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/network/docker/README.md). Depending on your machine, this can take a while, since it is compiling quorum/geth from source in the `quorum-node` base container, since the officially provided quorum-image has no Istanbul BFT built in.
 
 **Step 2** - Initializing nodes
 
@@ -92,7 +92,7 @@ $ ./network.py setup
 
 This sets up all contracts specified in `network.yaml`. There are three types of contracts: `Governing.sol`, `CBDC.sol`, `CCBDC.sol`. They are at the core of the proposed payment system.
 
-For more information on the Contracts, look [here](http://www.url.com).
+For more information on the contracts look [here](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/contracts/README.md).
 
 
 **Stopping running nodes**
@@ -178,7 +178,7 @@ Once connected via console, before you can invoke transactions to call contract 
 > gov.governorCount.call() 
 ```
 
-If you want to know about each smart contract, please refer to [here](http://www.url.com).
+If you want to know about each smart contract, please refer to [here](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/contracts/README.md).
 
 **This interface is not thought for human interaction.** The benefit of having this interface is to automate web services in the future that interact with these smart contracts. So this is the foundation for future applications that can be built upon this prototype.
 
@@ -196,7 +196,7 @@ This allows the setup of blockchain listeners, which everyone can operate withou
 
 **Option 3**
 
-Connect via `docker`. For security relevant operations (anything that includes a node's main private key), e.g. creation of new colored coins via `CCBDC.sol`, we considered a web-connection as insecure. Therefore we provide command-line-tools (more info [here](http://www.url.com)), to interact with the provided smart contracts in a more secure fashion by directly connecting to the underlying docker container. In production this can be done via a private intra-net. This allows future automation via network scripts.
+Connect via `docker`. For security relevant operations (anything that includes a node's main private key), e.g. creation of new colored coins via `CCBDC.sol`, we considered a web-connection as insecure. Therefore we provide command-line-tools (more info [here](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/network/docker/README.md)), to interact with the provided smart contracts in a more secure fashion by directly connecting to the underlying docker container. In production this can be done via a private intra-net. This allows future automation via network scripts.
 
 To connect to the government's first governor-node and e.g. get information on how to issue a new colored coin use the following command.
 

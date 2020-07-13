@@ -1,8 +1,10 @@
 # DLT4PI-CBDC
 
+![git-header]("https://raw.githubusercontent.com/hohmannr/DLT4PI-CBDC/master/pics/git-header.png")
+
 ## Documentation
 
-This Repo has is structured in main sub-directories `./network`, `./contracts`, `./tests`. Each sub-directory has its own README that explains the code setup in this specific sub-directory. In addition to these READMEs, a small Wiki can be found in `./wiki`. It contains all READMEs and further explanations.
+This Repo is structured in main sub-directories `./network`, `./contracts`, `./tests` and `./network/docker`. Each sub-directory has its own README that explains the code setup in this specific sub-directory. In addition to these READMEs, a small Wiki can be found in `./wiki`. It contains all READMEs and additional information.
 
 ## Requirements
 
