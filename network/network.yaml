@@ -9,6 +9,9 @@ network:
     # private banks
     - aclydia
     - bb-bank
+
+    # ngos
+    - life-ngo
   
   docker-settings:
     network-driver: "bridge"
@@ -102,6 +105,17 @@ network:
         rpc-port: 22008
         docker-ip: 172.19.0.90
         token-supply: 1000
+        accounts:
+          - main:
+              passphrase: root
+
+  observers:
+    - life-ngo.obs0:
+        org: life-ngo
+        ip: 127.0.0.1
+        port: 30309
+        rpc-port: 22009
+        docker-ip: 172.19.0.91
         accounts:
           - main:
               passphrase: root

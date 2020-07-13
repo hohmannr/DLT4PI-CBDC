@@ -1,0 +1,22 @@
+# Tests
+
+This directory contains various integration tests for all of the provided smart contracts.
+
+## Running tests
+
+These tests considers tht the network has been fully setup using the `../network/network.yaml` default configuration file that ships with this repository. They are intended to be used right after the network has been setup.
+
+First make sure that `web3.js` is installed.
+
+```
+$ npm install web3
+```
+
+Please **follow the testing order** below, since the tests can influence each other, if not executed one after the other.
+
+**Step 1** - Test `Governing.sol`
+
+```
+$ node governingTests.js
+```
+

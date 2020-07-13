@@ -135,7 +135,7 @@ def arg_parser():
     # create subcmd
     create_parser = subparsers.add_parser("create", help="Creates a new colored coin.")
     create_parser.add_argument("-C", required=True, type=int, help="Color of new coin.", metavar="<color-id>")
-    create_parser.add_argument("-S", required=True, nargs="+", type=int, help="Amount of blocks the new coin can exist before destroyed.", metavar="<shade>...")
+    create_parser.add_argument("-S", required=True, nargs="+", type=int, help="Shade/Merchantcode that converts colored coin to general CBDC.", metavar="<shade>...")
     create_parser.add_argument("-s", required=True, type=int, help="Initial supply of new coin.", metavar="<supply>")
     create_parser.add_argument("-d", required=True, type=int, help="Amount of blocks the new coin can exist before destroyed.", metavar="<deadline>")
 

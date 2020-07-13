@@ -14,7 +14,7 @@ This is a network proposal, that is the basis for a publicly visible but permiss
 
 The network configuration file `network.yaml` is used to define the network participants (organizations) with their specific nodes.
 
-More on the `network.yaml` file [here](http://www.url.com)
+More on the `network.yaml` file [here](http://www.url.com).
 
 The included `network.yaml` configuration models a central bank which issues a CBDC over this network. It includes
 
@@ -57,7 +57,7 @@ $ git submodule update
 
 The first network in this directory is setup in four simple steps:
 
-**Step 1.** - Making dependencies
+**Step 1** - Making dependencies
 
 ```
 $ cd quorum && make all && cd ..
@@ -65,9 +65,9 @@ $ cd istanbul-tools && make && cd ..
 $ ./network.py prepare
 ```
 
-This makes the dependencies and builds up the needed docker images for all node-types from each `Dockerile` located at `./docker/<node-tpye>/Dockerfile`. For more information on how we use docker in this prototype please check [here](http://www.url.com). Depending on your machine, this can take a while, since it is compiling quorum/geth from source in the `quorum-node` base container, since the officially provided quorum-image has no Istanbul BFT built in.
+This makes the dependencies and builds up the needed docker images for all node-types from each `Dockerfile` located at `./docker/<node-tpye>/Dockerfile`. For more information on how we use docker in this prototype please check [here](http://www.url.com). Depending on your machine, this can take a while, since it is compiling quorum/geth from source in the `quorum-node` base container, since the officially provided quorum-image has no Istanbul BFT built in.
 
-**Step 2.** - Initializing nodes
+**Step 2** - Initializing nodes
 
 ```
 $ ./network.py init
@@ -75,7 +75,7 @@ $ ./network.py init
 
 This initializes the nodes, creates a certain directory hierarchy (learn more [here](#directory-tree)) and prepares every node for booting. All nodes are initialized as seperate docker containers.
 
-**Step 3.** - Booting up all nodes
+**Step 3** - Booting up all nodes
 
 ```
 $ ./network.py up
@@ -155,8 +155,9 @@ When using `network.py` to setup the network, following directory logic is creat
 
 This structure is generated from the `network.yaml` and represents all nodes and organizations listed in there. It is needed for the setup with docker containers.
 
-More on the file-structure [here](http://www.url.com).
-More on the docker setup used [here](http://www.url.com).
+## Where to go from here?
+
+To ensure that everything will run smoothly, we have integration tests for each smart contract located at `../tests`. Please check this sub-directory's README and test the contracts before interacting with the network.
 
 ## How to connect to the network
 

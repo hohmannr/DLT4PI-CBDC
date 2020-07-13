@@ -360,6 +360,7 @@ class Prepare(Command):
         docker_images = os.listdir(cls.DOCKERDIR)
         # TODO: make this less hacky
         docker_images.remove("quorum-node")
+        docker_images.remove("README.md")
         docker_images.insert(0, "quorum-node")
         for img in docker_images:
             try:
@@ -1018,6 +1019,8 @@ class Network(Config):
             return Governor(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
         elif type == "banker":
             return Banker(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
+        elif type == "observer":
+            return Observer(name, type, node_dict[name], self.dir, self.docker_settings.geth_port, self.docker_settings.rpc_port, self.docker_settings.workdir)
     
     def create_contract(self, contract_dict):
         """Creates a contract object."""
@@ -1614,11 +1617,14 @@ class Maintainer(NonValidatorNode):
             raise MainAccountErr(f"No geth main account found for maintainer node '{self.name}'.")
 
 class Governor(NonValidatorNode):
-    """Represents a governor node as an object."""
+    """Represents a governor node as an object. (Necessary Code in Dockerfile)."""
 
 class Banker(NonValidatorNode):
     """Represents a banker node as an object."""
     OPTIONAL_KEYS = ["accounts", "token-supply"]
+
+class Observer(NonValidatorNode):
+    """Represents an observer as an object. (Necessary Code in Dockerfile)."""
 
 if __name__ == "__main__":
     sys.exit(Command.call())
