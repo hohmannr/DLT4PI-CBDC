@@ -22,6 +22,7 @@ The included `network.yaml` configuration models a central bank which issues a C
 - 2x `governors` one from the central bank and one from the government
 - 2x `bankers` from two different private banks (aclydia and bb-bank)
 - 1x `maintainer` from the government
+- 1x `observer` from life-ngo
 
 ## Network Script
 
@@ -64,6 +65,8 @@ $ cd istanbul-tools && make && cd ..
 $ ./network.py prepare
 ```
 
+This makes the dependencies and builds up the needed docker images for all node-types from each `Dockerile` located at `./docker/<node-tpye>/Dockerfile`. For more information on how we use docker in this prototype please check [here](http://www.url.com). Depending on your machine, this can take a while, since it is compiling quorum/geth from source in the `quorum-node` base container, since the officially provided quorum-image has no Istanbul BFT built in.
+
 **Step 2.** - Initializing nodes
 
 ```
@@ -79,7 +82,7 @@ $ ./network.py up
 ```
 
 Now the network configured in `network.yaml` should be running.
-Every node is a seperate running (quorum flavored) `geth` node.
+Every node is a seperate running quorum/geth node running in docker containers.
 
 **Step 4** - Setting up contracts
 
@@ -89,7 +92,7 @@ $ ./network.py setup
 
 This sets up all contracts specified in `network.yaml`. There are three types of contracts: `Governing.sol`, `CBDC.sol`, `CCBDC.sol`. They are at the core of the proposed payment system.
 
-For more information on the Contracts, look [here](http://www.url.com)
+For more information on the Contracts, look [here](http://www.url.com).
 
 
 **Stopping running nodes**
@@ -98,7 +101,7 @@ For more information on the Contracts, look [here](http://www.url.com)
 $ ./network.py down
 ```
 
-This downs every node. **Please always use this method to stop the geth nodes**, it is doing important clean up work.
+This shuts down all nodes. **Please always use this method to stop the geth nodes**, it is doing important clean up work.
 
 **Resetting the network**
 
@@ -154,6 +157,52 @@ This structure is generated from the `network.yaml` and represents all nodes and
 
 More on the file-structure [here](http://www.url.com).
 More on the docker setup used [here](http://www.url.com).
+
+## How to connect to the network
+
+Once the network is setup and running, there are three main ways to connect to a network nodes
+
+**Option 1**
+
+Connect via console. This connects directly to the geth/quorum node and gives you a javascript-console to work with. To make contract interaction easier, use `geth.js` as a preload. The binary to connect to the nodes is located at `./quorum/build/geth`. Fore example, to connect to the government's first governor-node use the following command. The node's ip and rpc-port are printed to the console when calling `./network.py up`, but are also available at `./<network-name>/<org-name>/<node-type>/<node-name>/info.json`. Please **do not use** `--preload geth.js` when connecting to a validator-node, since they do not have any accounts and are seperated from other node-types.
+
+```
+$ ./quorum/build/bin/geth attach --preload geth.js http://127.0.0.1:22006
+```
+
+Once connected via console, before you can invoke transactions to call contract methods, you need to initialize the contract you want to interact with, with its address. For each contract, the `geth.js` preloads its interface (called `governing`, `cbdc` and `ccbdc`). So if you want to interact for example with `Governing.sol`, use the following command. Since addresses are generated for each network setup anew, you can find each contract's address in `./<network-name>/contracts/<contract-name>/info.json`.
+
+```
+> gov = governing.at("<address>")
+> gov.governorCount.call() 
+```
+
+If you want to know about each smart contract, please refer to [here](http://www.url.com).
+
+**This interface is not thought for human interaction.** The benefit of having this interface is to automate web services in the future that interact with these smart contracts. So this is the foundation for future applications that can be built upon this prototype.
+
+**Option 2**
+
+Connect via JSON-RPC. This method is thought to be used extensively used for observer-nodes. These nodes broadcast a copy of the blockchain to the general public. Everyone can get any information on the blockchain via standard quorum/geth JSON-RPC calls (more documentation on the [official website](https://eth.wiki/json-rpc/API)).
+
+For example if you want to get the current block number from the observer-node (which in production should be the only node that has this port open), just use a `POST` request as such:
+
+```
+$ curl -X POSTi -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":10}' http://127.0.0.1:22009
+```
+
+This allows the setup of blockchain listeners, which everyone can operate without the ability to participate in the consensus algorithm. Thus ensuring trust in a permissioned blockchain.
+
+**Option 3**
+
+Connect via `docker`. For security relevant operations (anything that includes a node's main private key), e.g. creation of new colored coins via `CCBDC.sol`, we considered a web-connection as insecure. Therefore we provide command-line-tools (more info [here](http://www.url.com)), to interact with the provided smart contracts in a more secure fashion by directly connecting to the underlying docker container. In production this can be done via a private intra-net. This allows future automation via network scripts.
+
+To connect to the government's first governor-node and e.g. get information on how to issue a new colored coin use the following command.
+
+```
+$ docker exec -it government.gov0 /bin/sh
+> ccbdc --help
+```
 
 ## Changelog
 

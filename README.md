@@ -2,7 +2,7 @@
 
 ## Documentation
 
-This Repo has several is structured in main sub-directories `./network`, `./contracts`, `./tests`. Each sub-directory has its own README that explains the code setup in this specific sub-directory. In addition to these READMEs, a small Wiki can be found in `./wiki`. It contains all READMEs and further explanations.
+This Repo has is structured in main sub-directories `./network`, `./contracts`, `./tests`. Each sub-directory has its own README that explains the code setup in this specific sub-directory. In addition to these READMEs, a small Wiki can be found in `./wiki`. It contains all READMEs and further explanations.
 
 ## Requirements
 
