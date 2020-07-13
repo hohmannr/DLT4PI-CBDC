@@ -1,6 +1,6 @@
 # DLT4PI-CBDC
 
-![git-header]("https://raw.githubusercontent.com/hohmannr/DLT4PI-CBDC/master/pics/git-header.png")
+![git-header]("test.de")
 
 ## Documentation
 
