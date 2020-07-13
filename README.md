@@ -80,6 +80,8 @@ Once the requirements are fullfilled, you are ready to setup the network. Theref
 - fullfill requirements 
 - setup network
 - test smart contracts
+- connect to network
+- build applications upon network
 
 ## Testing Disclaimer
 
@@ -104,7 +106,7 @@ The Code has been tested with following versions on `5.6.14-arch1-1` Linux.
 
 ### MIT License
 
-Copyright (c) 2020 hohmannr
+Copyright (c) 2020 fortiss
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
