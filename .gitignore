@@ -1,2 +1,4 @@
 network/cbdc-net/
 network/quorum.sh
+
+tests/node_modules/

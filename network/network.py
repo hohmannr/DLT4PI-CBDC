@@ -1571,7 +1571,7 @@ class NonValidatorNode(Node):
 class Maintainer(NonValidatorNode):
     """Represents a maintainer node as an object. Maintainers deploy contracts to the network."""
 
-    def setup_contract(self, contract, addr):
+    def setup_contract(self, contract, contract_addr):
         """Sets up CBDC contract."""
         if "main" in self.accs.keys():
             w3 = Web3(Web3.HTTPProvider(f"http://{self.ip}:{self.rpc_port}"))
@@ -1585,7 +1585,7 @@ class Maintainer(NonValidatorNode):
             bytecode = contract.get_bytecode()
             abi = contract.get_abi()
             eth_contract = w3.eth.contract(contract.addr, abi=abi, bytecode=bytecode)
-            tx_hash = eth_contract.functions.setup(addr).transact()
+            tx_hash = eth_contract.functions.setup(contract_addr).transact()
             tx_receipt = w3.eth.waitForTransactionReceipt(tx_hash)
         else:
             raise MainAccountErr(f"No geth main account found for maintainer node '{self.name}'.")

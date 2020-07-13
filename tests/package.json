@@ -1,0 +1,14 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "description": "Testing Environment for CBDC and CCBDC prototype",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Testing Governing Contract && node governingTests.js && echo 'Testing CBDC Contract' && node cbdcTests.js && echo 'Testing CCBDC Contract' && node ccbdcTests.js"
+  },
+  "author": "hohmannr",
+  "license": "MIT",
+  "dependencies": {
+    "web3": "^1.2.9"
+  }
+}

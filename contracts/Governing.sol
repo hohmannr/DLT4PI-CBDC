@@ -164,7 +164,7 @@ contract Governing {
         emit NewVote(now, _proposalID, proposal.voteCount);
 
         // check if votes have surpassed the threshold
-        if(proposal.voteCount > proposal.voteThreshold) {
+        if(proposal.voteCount >= proposal.voteThreshold) {
             proposal.accepted = true;
 
             if(proposal.t == ProposalType.VoteIn) {
