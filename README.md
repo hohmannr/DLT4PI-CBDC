@@ -2,12 +2,7 @@
 
 ## Documentation
 
-This Repo has several important sub-directories. They hold the code for specific parts of the overall model.
-Documentation of the code is provided as READMEs in the according sub-directories. 
-
-Available READMEs:
-
-- [network](https://github.com/hohmannr/DLT4PI-CBDC/blob/master/network/README.md)
+This Repo has several is structured in main sub-directories `./network`, `./contracts`, `./tests`. Each sub-directory has its own README that explains the code setup in this specific sub-directory. In addition to these READMEs, a small Wiki can be found in `./wiki`. It contains all READMEs and further explanations.
 
 ## Requirements
 
@@ -15,7 +10,7 @@ A generic UNIX operating system is needed.
 
 ### Linux
 
-Make sure `linux.h` headers are installed.
+Make sure `linux.h` headers are installed (they normally should be installed already).
 
 ### General
 
@@ -27,13 +22,64 @@ Make sure `linux.h` headers are installed.
 - go
 - docker
 - solc
+- node
+- npm
+    - web3.js
 ```
 
 **Please make sure the requirements are fullfilled before proceeding.**
 
-## Network
+### How to install?
 
-For further information on how to setup a test network, please check the guide provided in the networks [README](https://github.com/hohmannr/DLT4PI-CBDC/tree/master/network#default-network-setup)
+The installation process for the dependencies rely heavily on your operating system. Here is some official documentation for each of the dependecies:
+
+**Python3**
+
+Python3 often comes already shipped with your OS. On certain Linux distribution you have to install an additional `python3-dev` package, which contains header-files necessary for running own python code. [This is the offical python3 download page](https://www.python.org/downloads/). See [Testing Disclaimer](#testing-disclaimer) for the python version used.
+
+Additionally to `python3`, you also need the packages `web3.py` and `pyyaml`. The network setup script relies on these dependencies. You can install them via the python3 package installer `pip3` [official pip documentation](https://pypi.org/project/pip/).
+
+```
+$ pip3 install web3 pyyaml
+```
+
+**make**
+
+Make is needed to make the dependencies. Normally the `make` command ships already with your OS.
+
+**Golang**
+
+Golang is needed to run the quorum/geth instances. How to install it, depends heavily on your OS. Golang normally also gets shipped with your distro's package-manager (if you are on linux). Further information can be found [here](https://golang.org/doc/install).
+
+**Docker**
+
+Docker is the containerization software used to build up the various node types and to form a virtual network on a single physical machine. Docker is sometimes tricky to setup. How to do it properly can be read in their [documentation](https://docs.docker.com/get-docker/). Also make sure that the `docker-daemon` is running before trying to setup the network.
+
+**Solc**
+
+`solc` is the solidity compiler used to automatically compile the smart contracts located in `./contracts`. There are various ways to install `solc` described [here](https://solidity.readthedocs.io/en/v0.4.21/installing-solidity.html). Normally if you install the `solidity` package with your package-manager, it comes with `solc` as its compiler. It is important to have the `solc` command working. Check by typing:
+
+```
+$ which solc
+```
+
+**Nodejs**
+
+`node` is used for tests performed in `./tests` of the smart contracts aswell as to make interaction with the network nodes easier. `node` can be downloaded from [here](https://nodejs.org/en/download/), but it is most likely also inclueded as a package of your package-manader.
+
+**Node Package Manager**
+
+`npm` is used to build a node packages, e.g. the tests in `./tests`. It comes normally distributed with `node`.
+
+
+## Where to go now?
+
+Once the requirements are fullfilled, you are ready to setup the network. Therefore please go to `./network` and proceed with the README there.
+
+**Intended Process Flow**
+- fullfill requirements 
+- setup network
+- test smart contracts
 
 ## Testing Disclaimer
 
@@ -50,6 +96,8 @@ The Code has been tested with following versions on `5.6.14-arch1-1` Linux.
     - runc=1.0.0-rc10
     - docker-init=0.18.0
 - solc=0.6.10
+- node=v14.5.0
+- npm=6.14.5
 ```
 
 ## License
