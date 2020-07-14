@@ -603,6 +603,7 @@ class Clean(Command):
     @classmethod
     def delete_docker_imgs(cls, net):
         docker_images = os.listdir(cls.DOCKERDIR)
+        docker_images.remove("README.md")
         for img in docker_images:
             cmd = f"docker image rm {img}"
             cls.print_progress(f"Deleting docker image '{img}'.", Shell.call, cmd, check_ret=True)
